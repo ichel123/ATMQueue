@@ -54,9 +54,11 @@ if __name__ == '__main__':
         queue.enqueue(queue_client)
 
     # Instanciación de etiquetas
+    time_tag = view.Tag(20, 360, f'Tiempo: {time}', 'Comic Sans MS', 15, 'Black')
     tag_list = [
         view.Tag(20, 480, 'Id:', 'Comic Sans MS', 15, 'Black'),
-        view.Tag(20, 520, 'Solicitudes:', 'Comic Sans MS', 15, 'Black')
+        view.Tag(20, 520, 'Solicitudes:', 'Comic Sans MS', 15, 'Black'),
+        time_tag
     ]
 
     # Instanciación de cajas de texto
@@ -275,7 +277,7 @@ if __name__ == '__main__':
                 automatic_button.active = False
                 waiting = True
 
-        # Actualizar los botones..
+        # Actualizar los botones.
         for button in button_list:
             button.update()
 
@@ -293,6 +295,9 @@ if __name__ == '__main__':
             nextstep_button.active = False
         else:
             nextstep_button.active = True
+
+        # Actualizando el contador de tiempo.
+        time_tag.tag = f'Tiempo: {time}'
 
         # Dibujar los elementos en pantalla.
         atm.draw(screen, queue)
