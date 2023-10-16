@@ -15,7 +15,7 @@ class ATM:
 
         super().__init__(*args, **kwargs)
         self.image = pygame.image.load('atm.png').convert_alpha()
-        self.image = pygame.transform.scale_by(self.image, params.ALTO_GRAFICOS/self.image.get_height())
+        self.image = pygame.transform.scale_by(self.image, params.GRAPH_HEIGHT/self.image.get_height())
         self.rect = self.image.get_rect(topleft=(x,y))
         self.font = font
 
@@ -71,7 +71,7 @@ class Client:
 
         super().__init__(*args, **kwargs)
         self.image = pygame.image.load('client.png').convert_alpha()
-        self.image = pygame.transform.scale_by(self.image, params.ALTO_GRAFICOS/self.image.get_height())
+        self.image = pygame.transform.scale_by(self.image, params.GRAPH_HEIGHT/self.image.get_height())
         self.rect = self.image.get_rect(topleft=(x,y))
         self.queue_client = queue_client
 

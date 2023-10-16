@@ -217,7 +217,7 @@ class Queue_Client:
 class ATM_Queue(Queue[Queue_Client]):
     """Representa una cola donde al frente hay un cajero."""
 
-    def __init__(self, capacity: int = 5, *args: Queue_Client):
+    def __init__(self, capacity: int, *args: Queue_Client):
         """capacity: Número de solicitudes que el cajero puede atender por turno.
         args: Clientes en la cola."""
 
@@ -230,6 +230,7 @@ class ATM_Queue(Queue[Queue_Client]):
         self._Queue__size = 1
 
         self.__capacity = capacity
+        self.__current_service = 0
 
         for arg in args:
             self.enqueue(arg)
@@ -250,12 +251,21 @@ class ATM_Queue(Queue[Queue_Client]):
         if self._Queue__size <= 1:
             None
 
-        self._Queue__front.next.data.respond_requests(self.__capacity)
+        self._Queue__front.next.data.respond_requests(1)
+        self.__current_service += 1
+        if     self.__current_service < self.__capacity \
+           and not self._Queue__front.next.data.is_done():
+            return None
+        
+        self.__current_service = 0
         if self._Queue__front.next.data.is_done():
             return super().dequeue(1)
 
         self.enqueue(super().dequeue(1))
         return None
+
+    def get_current_service(self) -> int:
+        return self.__current_service
 
     def __repr__(self) -> str:
         return f'{type(self).__name__}({str(list(self))[1:-1]})'

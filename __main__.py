@@ -23,6 +23,7 @@ if __name__ == '__main__':
     state = State.LAST_IN
     waiting = True
     client: view.Client = None
+    time = 0
 
     # Declaración del evento para cambio de estado y si la ejecución es automática.
     AUTOMATIC_STATE_CHANGE = pygame.USEREVENT + 1
@@ -33,7 +34,7 @@ if __name__ == '__main__':
     MANUAL_STATE_CHANGE = pygame.USEREVENT + 2
 
     # Instanciación de la cola y respectivos representantes gráficos
-    queue = logic.ATM_Queue()
+    queue = logic.ATM_Queue(params.ATM_CAPACITY)
     atm = view.ATM(params.X_INIT_POS, params.Y_INIT_POS, queue_elements_font)
     clients_queue = []
     clients_done = []
@@ -185,7 +186,11 @@ if __name__ == '__main__':
                 try:
                     # Cliente a la cabeza de la cola.
                     client = clients_queue[0]
+                    
                     queue.dequeue()
+                    time += 1
+                    if (queue.get_current_service() > 0):
+                        state = State.LAST_IN
 
                     # Si el cliente finaliza, sale de la lista de clientes en espera (estructura).
                     if client.queue_client.is_done():
@@ -284,7 +289,7 @@ if __name__ == '__main__':
             addclient_button.active = True
 
         # El botón nextstep_button sólo debe estar disponible si se está en estado de espera no automático.
-        if not waiting or automatic:
+        if not waiting or automatic or state is State.HALT:
             nextstep_button.active = False
         else:
             nextstep_button.active = True
