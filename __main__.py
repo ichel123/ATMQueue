@@ -1,8 +1,5 @@
 """Programa que simula una cola de cajero de manera gráfica usando Pygame."""
 
-import sys
-sys.path.append('RUTA_COMPLETA_A_PYTHON_3.11/lib')
-
 import sys, pygame, random, enum
 import logic, view, params
 
@@ -22,62 +19,165 @@ if __name__ == '__main__':
     screen = pygame.display.set_mode((params.SCREEN_WIDTH, params.SCREEN_HEIGHT))
     pygame.display.set_caption('Proceso de colas')
     clock = pygame.time.Clock()
-    font = pygame.font.Font(None, 20)
+    queue_elements_font = pygame.font.Font(None, 20)
     state = State.LAST_IN
     waiting = True
     client: view.Client = None
 
-    button = view.Button(20, 500, 200, 100, 2, 'Botón', 'Fira Code', 10, lambda: print('Oprimido'))
-    textbox = view.Textbox(20, 400, 200, 30, 2, 'Arial', 15)
-    table = view.Table(300, 400, 100, 20, 4, 6)
-    table.set_value('perrito', 1, 1)
+    # Declaración del evento para cambio de estado y si la ejecución es automática.
+    AUTOMATIC_STATE_CHANGE = pygame.USEREVENT + 1
+    pygame.time.set_timer(AUTOMATIC_STATE_CHANGE, params.STATE_CHANGE_TIME, -1)
+    automatic = False
 
-    # Declaración del evento para cambio de estado y su respectivo temporizador.
-    STATE_CHANGE = pygame.USEREVENT + 1
-    pygame.time.set_timer(STATE_CHANGE, params.STATE_CHANGE_TIME, -1)
+    # Declaración del evento para el cambio de estado manual
+    MANUAL_STATE_CHANGE = pygame.USEREVENT + 2
 
     # Instanciación de la cola y respectivos representantes gráficos
     queue = logic.ATM_Queue()
-    atm = view.ATM(params.X_INIT_POS, params.Y_INIT_POS, font)
+    atm = view.ATM(params.X_INIT_POS, params.Y_INIT_POS, queue_elements_font)
     clients_queue = []
     clients_done = []
     x_pos = atm.rect.right + params.PADDING
-    for i in range(5):
+    for i in range(3):
         queue_client = logic.Queue_Client(i, random.randint(1,15))
         clients_queue.append(
             view.Client(
                 x_pos,
                 params.Y_INIT_POS,
                 queue_client,
-                font,
+                queue_elements_font,
                 0.9 * params.STATE_CHANGE_TIME
             )
         )
         x_pos = clients_queue[-1].rect.right + params.PADDING
         queue.enqueue(queue_client)
 
+    # Instanciación de etiquetas
+    tag_list = [
+        view.Tag(20, 480, 'Id:', 'Comic Sans MS', 15, 'Black'),
+        view.Tag(20, 520, 'Solicitudes:', 'Comic Sans MS', 15, 'Black')
+    ]
+
+    # Instanciación de cajas de texto
+    textbox_list = []
+
+    id_textbox = view.Textbox(120, 480, 100, 30, 2, 'Comic Sans MS', 15)
+    textbox_list.append(id_textbox)
+
+    requests_textbox = view.Textbox(120, 520, 100, 30, 2, 'Comic Sans MS', 15)
+    textbox_list.append(requests_textbox)
+
+    # Instanciación de botones
+    button_list = []
+
+    automatic_button = view.Button(20, 400, 200, 30, 2, 'Encender Automático', 'Comic Sans MS', 15)
+    automatic_button.box_color_idle = 'Red'
+    button_list.append(automatic_button)
+
+    nextstep_button = view.Button(20, 440, 200, 30, 2, 'Siguiente Paso', 'Comic Sans MS', 15)
+    button_list.append(nextstep_button)
+
+    addclient_button = view.Button(20, 560, 200, 30, 2, 'Añadir Cliente', 'Comic Sans MS', 15)
+    button_list.append(addclient_button)
+
+    # Acciones de los botones
+    def automatic_button_action():
+        """Activa o desactiva el modo automático."""
+
+        global automatic
+        if not automatic:
+            automatic = True
+            automatic_button.tag = 'Apagar Automático'
+            automatic_button.box_color_idle = 'Green'
+        else:
+            automatic = False
+            automatic_button.tag = 'Encender Automático'
+            automatic_button.box_color_idle = 'Red'
+    automatic_button.action = automatic_button_action
+
+    def nextstep_button_action():
+        """Envía el evento de cambio de estado manual."""
+
+        pygame.event.post(pygame.event.Event(MANUAL_STATE_CHANGE)) 
+    nextstep_button.action = nextstep_button_action
+
+    def addclient_button_action():
+        """Añade un nuevo cliente a la cola y sale del estado HALT."""
+
+        global id_textbox, requests_textbox, state
+
+        if id_textbox.text in [str(queue_client.get_id()) for queue_client in list(queue)[1:]]:
+            id_textbox.text = '¡ERROR!'
+            return
+
+        try:
+            requests = int(requests_textbox.text)
+        except ValueError:
+            requests_textbox.text = '¡ERROR!'
+            return
+
+        queue_client = logic.Queue_Client(id_textbox.text, requests)
+
+        try:
+            x_pos = clients_queue[-1].rect.right + params.PADDING
+        except IndexError:
+            x_pos = atm.rect.right + params.PADDING
+
+        clients_queue.append(
+            view.Client(
+                x_pos,
+                params.Y_INIT_POS,
+                queue_client,
+                queue_elements_font,
+                0.9 * params.STATE_CHANGE_TIME
+            )
+        )
+        queue.enqueue(queue_client)
+
+        id_textbox.text = ''
+        requests_textbox.text = ''
+
+        if state is State.HALT:
+            state = State.LAST_IN
+
+    addclient_button.action = addclient_button_action
+
     # Ejecución del programa
     while True:
-        for evento in pygame.event.get():
+        for event in pygame.event.get():
             # Oprimir el botón de cerrar ventana.
-            if evento.type == pygame.QUIT:
+            if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
 
-            # Cambio de estado
-            if evento.type == STATE_CHANGE:
-                waiting = False
-                if state != State.HALT:
-                    state = State((state.value + 1) % (len(State) - 1))
+            # Cambio de estado automático.
+            if event.type == AUTOMATIC_STATE_CHANGE:
+                if automatic and waiting:
+                    waiting = False
+                    if state != State.HALT:
+                        state = State((state.value + 1) % (len(State) - 1))
 
-            if evento.type == pygame.MOUSEBUTTONDOWN:
-                textbox.check_active()
+            # Cambio de estado manual.
+            if event.type == MANUAL_STATE_CHANGE:
+                if waiting:
+                    waiting = False
+                    if state != State.HALT:
+                        state = State((state.value + 1) % (len(State) - 1))
 
-            if evento.type == pygame.KEYDOWN:
-                textbox.add_text(evento.unicode)
+            # Hacer click en una caja de texto.
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == pygame.BUTTON_LEFT:
+                    for textbox in textbox_list:
+                        textbox.check_active()
+
+            # Escribir en las cajas de texto.
+            if event.type == pygame.KEYDOWN:
+                for textbox in textbox_list:
+                    textbox.add_text(event.unicode)
 
         screen.fill('White')
-        # Máquina de estados
+
+        # Máquina de estados.
         if not waiting:
             if state is State.RESPOND_QUEUE:
                 # Los procesos de este estado sólo se realizan una vez.
@@ -131,8 +231,7 @@ if __name__ == '__main__':
                         )
                     else: # O a la cola de terminados, si corresonde (gráfico).
                         client.set_destination_point(
-                            params.SCREEN_WIDTH
-                                - (client.rect.width + params.PADDING) * len(clients_done),
+                            params.SCREEN_WIDTH,
                             client.rect.y
                         )
 
@@ -161,18 +260,48 @@ if __name__ == '__main__':
             elif state is State.LAST_IN:
                 # Mover al cliente a su nuevo lugar en la cola de espera (gráfico).
                 client.move(pygame.time.get_ticks())
+                if client.move_done():
+                    waiting = True
+                    clients_done.clear()
 
-        # Revisar si se oprime el botón
-        button.update()
+            elif state is State.HALT:
+                if automatic:
+                    automatic_button.performAction()
+                automatic_button.active = False
+                waiting = True
+
+        # Actualizar los botones..
+        for button in button_list:
+            button.update()
+
+        if state is not state.HALT:
+            automatic_button.active = True
+
+        # El botón de añadir cliente no funciona el último cliente de la fila no esté en la última posición.
+        if not waiting or state is State.FIRST_OUT:
+            addclient_button.active = False
+        else:
+            addclient_button.active = True
+
+        # El botón nextstep_button sólo debe estar disponible si se está en estado de espera no automático.
+        if not waiting or automatic:
+            nextstep_button.active = False
+        else:
+            nextstep_button.active = True
 
         # Dibujar los elementos en pantalla.
         atm.draw(screen, queue)
         for client_it in clients_queue + clients_done:
             client_it.draw(screen, queue)
         
-        button.draw(screen)
-        textbox.draw(screen)
-        table.draw(screen)
+        for tag in tag_list:
+            tag.draw(screen)
+
+        for textbox in textbox_list:
+            textbox.draw(screen)
+
+        for button in button_list:
+            button.draw(screen)
 
         # Actualizar pantalla y esperar.
         pygame.display.update()

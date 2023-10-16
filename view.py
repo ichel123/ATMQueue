@@ -4,8 +4,6 @@ import pygame, math
 import logic, params
 from typing import Callable
 
-ALTO_GRAFICOS = 100
-
 class ATM:
     """Representa gráficamente el cajero que atiende a los clientes.
     Señala quién es el siguiente cliente."""
@@ -17,7 +15,7 @@ class ATM:
 
         super().__init__(*args, **kwargs)
         self.image = pygame.image.load('atm.png').convert_alpha()
-        self.image = pygame.transform.scale_by(self.image, ALTO_GRAFICOS/self.image.get_height())
+        self.image = pygame.transform.scale_by(self.image, params.ALTO_GRAFICOS/self.image.get_height())
         self.rect = self.image.get_rect(topleft=(x,y))
         self.font = font
 
@@ -32,7 +30,7 @@ class ATM:
             next_value = list(queue)[0]
 
         next_text_surface = self.font.render(
-            f'next: {next_value.get_id() if type(next_value) == logic.Queue_Client else next_value}',
+            f'sig: {next_value.get_id() if type(next_value) == logic.Queue_Client else next_value}',
             True,
             'Black'
         )
@@ -73,7 +71,7 @@ class Client:
 
         super().__init__(*args, **kwargs)
         self.image = pygame.image.load('client.png').convert_alpha()
-        self.image = pygame.transform.scale_by(self.image, ALTO_GRAFICOS/self.image.get_height())
+        self.image = pygame.transform.scale_by(self.image, params.ALTO_GRAFICOS/self.image.get_height())
         self.rect = self.image.get_rect(topleft=(x,y))
         self.queue_client = queue_client
 
@@ -136,13 +134,14 @@ class Client:
             'Black'
         )
         n_requests_text_surface = self.font.render(
-            f'n_requests: {self.queue_client.get_number_of_requests()}',
+            f'sol: {self.queue_client.get_number_of_requests()}',
             True,
             'Black'
         )
         next_value = queue.next_value(self.queue_client)
+        next_value = next_value if next_value else '_'
         next_text_surface = self.font.render(
-            f'next: {next_value.get_id() if type(next_value) == logic.Queue_Client else next_value}',
+            f'sig: {next_value.get_id() if type(next_value) == logic.Queue_Client else next_value}',
             True,
             'Black'
         )
@@ -206,7 +205,7 @@ class Button:
         self.outline_color_idle = 'Black'
         self.outline_color_hover = 'Black'
         self.outline_color_pressed = 'White'
-        self.outline_color_inactive = 'White'
+        self.outline_color_inactive = 'Black'
 
         self.box_color_idle = 'White'
         self.box_color_hover = 'Grey'
@@ -312,6 +311,9 @@ class Textbox:
         """Añade el texto indicado a la cadena de la caja de texto.
         unicode: Texto a añadir."""
 
+        if not self.active:
+            return
+
         if unicode == '\b':
             self.text = self.text[:-1]
         elif unicode in ''.join([chr(char) for char in range(1, 32)]):
@@ -355,7 +357,7 @@ class Textbox:
 class Table:
     """Clase que permite imprimir tablas dentro de Pygame."""
 
-    def __init__(self, x: int, y: int, cell_widht: int, cell_height: int, rows: int, cols: int, font_name: str = None, font_size: int = None):
+    def __init__(self, x: int, y: int, cell_widht: int, cell_height: int, rows: int, cols: int, outline: int, font_name: str = None, font_size: int = None):
         """Construye la tabla con las propiedades indicadas.
         x: Posición en x de la esquina superior izquierda de la tabla.
         y: Posición en y de la esquina superior izquierda de la tabla.
@@ -363,6 +365,7 @@ class Table:
         cell_height: Ancho de todas las filas.
         rows: Número de filas.
         cols: Número de columnas.
+        outline: Grosor de línea.
         font_name: Nombre de una fuente en el sistema para el texto de la tabla.
         font_size: Tamaño de la fuente para el texto de la tabla."""
 
@@ -370,6 +373,7 @@ class Table:
         self.col_widths = [cell_widht for i in range(cols)]
         self.row_heights = [cell_height for i in range(rows)]
         self.cell_values = [['' for j in range(cols)] for i in range(rows)]
+        self.outline = outline
         self.font = pygame.font.SysFont(font_name if font_name else 'Arial', font_size if font_size else 10)
 
     def set_value(self, value: str, row: int, col: int) -> None:
@@ -418,8 +422,8 @@ class Table:
             x = self.pos[0]
             for col_index, value in enumerate(row):
                 rect = pygame.Rect(x, y, self.col_widths[col_index], self.row_heights[row_index])
-                x += rect.width - 1
-                pygame.draw.rect(surface, 'Black', rect, 2)
+                x += rect.width - self.outline
+                pygame.draw.rect(surface, 'Black', rect, self.outline)
                 text_surface = self.font.render(value, True, 'Black')
                 surface.blit(
                     text_surface,
@@ -428,4 +432,27 @@ class Table:
                         rect.centery - text_surface.get_height() / 2
                     )
                 )
-            y += self.row_heights[row_index] - 1
+            y += self.row_heights[row_index] - self.outline
+
+class Tag:
+    """Clase que permite colocar etiquetas dentro de Pygame."""
+
+    def __init__(self, x: int, y: int, tag: str, font_name: str, font_size: int, font_color: str) -> None:
+        """Construye la etiqueta con la información correspondiente.
+        x: Posición en x de la esquina superior izquierda de la etiqueta.
+        y: Posición en y de la esquina superior izquierda de la etiqueta.
+        tag: Texto de la etiqueta.
+        font_name: Nombre de una fuente en el sistema para escribir la etiqueta.
+        font_size: Tamaño de la fuente para escribir la etiqueta.
+        font_color: Color de la fuente para escribir la etiqueta."""
+
+        self.pos = pygame.math.Vector2(x, y)
+        self.tag = tag
+        self.font = pygame.font.SysFont(font_name if font_name else 'Arial', font_size if font_size else 10)
+        self.font_color = font_color
+
+    def draw(self, surface: pygame.Surface) -> None:
+        """Dibuja la etiqueta correspondientemente.
+        surface: Superficie sobre la que se imprimirá la etiqueta."""
+
+        surface.blit(self.font.render(self.tag, True, self.font_color), self.pos)
