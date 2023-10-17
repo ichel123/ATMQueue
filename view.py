@@ -298,6 +298,8 @@ class Textbox:
         self.font_color_active = 'Black'
         self.font_color_inactive = 'Black'
 
+        self.padding = params.TEXTBOX_PADDING
+
     def check_active(self) -> None:
         """Revisa si el mouse está encima de la cada de texto y, de ser así, la pone activa.
         De lo contrario, la desactiva."""
@@ -343,13 +345,13 @@ class Textbox:
         surface.blit(
             text_surface,
             (
-                self.rect.x + 5,
+                self.rect.x + self.padding,
                 self.rect.centery - text_surface.get_height()/2
             ),
             pygame.Rect(
-                max(0, text_surface.get_width() - self.rect.width + 10),
+                max(0, text_surface.get_width() - self.rect.width + 2 * self.padding),
                 0,
-                min(text_surface.get_width(), self.rect.width - 10),
+                min(text_surface.get_width(), self.rect.width - 2 * self.padding),
                 self.rect.height - 10
             )
         )
@@ -456,3 +458,175 @@ class Tag:
         surface: Superficie sobre la que se imprimirá la etiqueta."""
 
         surface.blit(self.font.render(self.tag, True, self.font_color), self.pos)
+
+class Grant:
+    """Clase para la impresión de un diagrama de Grant."""
+
+    def __init__(self, x: int, y: int, width: int, height: int, font_name: str, font_size: int) -> None:
+        """Construye el Diagrama de Grant con la información indicada.
+        x: Posición en x de la esquina superior izquierda del diagrama.
+        y: Posición en y de la esquina superior izquierda del diagrama.
+        width: Ancho del diagrama.
+        height: Alto del diagrama.
+        font_name: Nombre de una fuente en el sistema para usar en el diagrama.
+        font_size: Tamaño de la fuente para usar en el diagrama."""
+
+        self.rect = pygame.Rect(x, y, width, height)
+        self.font = pygame.font.SysFont(font_name if font_name else 'Arial', font_size if font_size else 10)
+        self.tags: list[str] = []
+        self.tags_rects: list[pygame.Rect] = []
+        self.tags_surface = pygame.Surface((0,0))
+        self.tags_active: list[bool] = []
+        self.lines_surface = pygame.Surface((0, 0))
+        self.numbers_surface = pygame.Surface((0, 0))
+        self.current_time = 1
+
+        self.padding = params.GRANT_PADDING
+
+    def add_tag(self, tag: str) -> None:
+        """Añade o regresa una etiqueta al diagrama.
+        tag: Etiqueta a agregar."""
+
+        try:
+            index = self.tags.index(tag)
+        except ValueError:
+            index = -1
+
+        if index >= 0:
+            self.tags_active[index] = True
+            return
+
+        self.tags.append(tag)
+        self.tags_active.append(True)
+
+        tag_surface = self.font.render(tag, True, 'Black')
+        tag_rect = tag_surface.get_rect(
+            topleft = (
+                self.padding,
+                self.tags_surface.get_height() + self.padding
+            )
+        )
+        self.tags_rects.append(tag_rect)
+
+        tags_surface = pygame.Surface(
+            (
+                max(self.tags_surface.get_width(), tag_rect.right + self.padding),
+                tag_rect.bottom
+            )
+        )
+        tags_surface.fill('White')
+        tags_surface.blit(self.tags_surface, (0, 0))
+        tags_surface.blit(tag_surface, tag_rect)
+        self.tags_surface = tags_surface
+
+        lines_surface = pygame.Surface(
+            (
+                self.lines_surface.get_width(),
+                self.tags_surface.get_height()
+            )
+        )
+        lines_surface.fill('White')
+        lines_surface.blit(self.lines_surface, (0, 0))
+        self.lines_surface = lines_surface
+
+    def remove_tag(self, tag: str) -> None:
+        """Deja de imprimir líneas para la etiqueta indicada.
+        tag: Etiqueta para la cual dejar de imprimir líneas."""
+
+        index = self.tags.index(tag)
+        self.tags_active[index] = False
+
+    def add_line(self, tag: str) -> None:
+        """Añade una nueva sección al diagrama con línea gruesa para la etiqueta indicada.
+        tag: Etiqueta a la cual dar línea gruesa."""
+
+        index = self.tags.index(tag)
+
+        lines_surface = pygame.Surface(
+            (
+                self.lines_surface.get_width() + params.GRANT_TIME_WIDTH,
+                self.lines_surface.get_height()
+            )
+        )
+        lines_surface.fill('White')
+        lines_surface.blit(self.lines_surface, (0, 0))
+
+        number_text_surface = self.font.render(str(self.current_time), True, 'Black')
+        number_text_surface = pygame.transform.scale_by(number_text_surface, 2/3)
+        numbers_surface = pygame.Surface(
+            (
+                self.numbers_surface.get_width() + params.GRANT_TIME_WIDTH,
+                max(self.numbers_surface.get_height(), number_text_surface.get_height())
+            )
+        )
+        numbers_surface.fill('White')
+        numbers_surface.blit(self.numbers_surface, (0, 0))
+        numbers_surface.blit(number_text_surface,
+            (
+                self.numbers_surface.get_width(),
+                numbers_surface.get_height() / 2 - number_text_surface.get_height() / 2
+            )
+        )
+        self.numbers_surface = numbers_surface
+        self.current_time += 1
+        
+        for i, tag_rect in enumerate(self.tags_rects):
+            if not self.tags_active[i]:
+                continue
+
+            line_rect = pygame.Rect(
+                self.lines_surface.get_width(),
+                tag_rect.top,
+                params.GRANT_TIME_WIDTH,
+                tag_rect.height
+            )
+            line_surface = pygame.Surface(
+                (
+                    params.GRANT_TIME_WIDTH,
+                    tag_rect.height / (1 if i == index else 5)
+                )
+            )
+            line_surface.fill('Red' if i == index else 'Black')
+
+            lines_surface.blit(
+                line_surface,
+                (
+                    line_rect.x,
+                    line_rect.y + tag_rect.height / 2 - line_surface.get_height() / 2
+                )
+            )
+
+        self.lines_surface = lines_surface
+
+    def draw(self, surface: pygame.Surface) -> None:
+        """Dibuja el diagrama correspondientemente.
+        surface: Superificie en la cual dibujar el diagrama."""
+
+        surface.blit(self.numbers_surface, (self.rect.x + self.tags_surface.get_width() + self.padding, self.rect.y),
+            (
+                max(0, self.numbers_surface.get_width() - self.rect.width + self.tags_surface.get_width() + self.padding),
+                0,
+                min(self.numbers_surface.get_width(), self.rect.width - self.tags_surface.get_width() - self.padding),
+                self.numbers_surface.get_height()
+            )
+        )
+
+        surface.blit(self.tags_surface, (self.rect.x + self.padding, self.rect.y + self.numbers_surface.get_height()),
+            pygame.Rect(
+                max(0, self.tags_surface.get_width() - self.rect.width + self.padding),
+                max(0, self.tags_surface.get_height() - self.rect.height + self.numbers_surface.get_height()),
+                min(self.tags_surface.get_width(), self.rect.width - self.padding),
+                min(self.tags_surface.get_height(), self.rect.height - self.numbers_surface.get_height())
+            )
+        )
+
+        surface.blit(self.lines_surface, (self.rect.x + self.tags_surface.get_width() + self.padding, self.rect.y + self.numbers_surface.get_height()),
+            pygame.Rect(
+                max(0, self.lines_surface.get_width() - self.rect.width + self.tags_surface.get_width() + self.padding),
+                max(0, self.lines_surface.get_height() - self.rect.height + self.numbers_surface.get_height()),
+                min(self.lines_surface.get_width(), self.rect.width - self.tags_surface.get_width() - self.padding),
+                min(self.lines_surface.get_height(), self.rect.height - self.numbers_surface.get_height())
+            )
+        )
+
+        pygame.draw.rect(surface, 'Black', self.rect, 2)

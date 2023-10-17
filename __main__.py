@@ -23,7 +23,7 @@ if __name__ == '__main__':
     state = State.LAST_IN
     waiting = True
     client: view.Client = None
-    time = 0
+    time = 1
 
     # Declaración del evento para cambio de estado y si la ejecución es automática.
     AUTOMATIC_STATE_CHANGE = pygame.USEREVENT + 1
@@ -32,6 +32,9 @@ if __name__ == '__main__':
 
     # Declaración del evento para el cambio de estado manual
     MANUAL_STATE_CHANGE = pygame.USEREVENT + 2
+
+    # Diagrama de Grant
+    grant = view.Grant(400, 300, 350, 250, 'Comic Sans MS', 15)
 
     # Instanciación de la cola y respectivos representantes gráficos
     queue = logic.ATM_Queue(params.ATM_CAPACITY)
@@ -52,6 +55,7 @@ if __name__ == '__main__':
         )
         x_pos = clients_queue[-1].rect.right + params.PADDING
         queue.enqueue(queue_client)
+        grant.add_tag(str(queue_client.get_id()))
 
     # Instanciación de etiquetas
     time_tag = view.Tag(20, 360, f'Tiempo: {time}', 'Comic Sans MS', 15, 'Black')
@@ -136,6 +140,7 @@ if __name__ == '__main__':
             )
         )
         queue.enqueue(queue_client)
+        grant.add_tag(str(queue_client.get_id()))
 
         id_textbox.text = ''
         requests_textbox.text = ''
@@ -191,6 +196,7 @@ if __name__ == '__main__':
                     
                     queue.dequeue()
                     time += 1
+                    grant.add_line(str(client.queue_client.get_id()))
                     if (queue.get_current_service() > 0):
                         state = State.LAST_IN
 
@@ -263,6 +269,7 @@ if __name__ == '__main__':
                         )
                     else: # O, si ya terminó, saltarse el estado de volver a entrar.
                         state = State.LAST_IN
+                        grant.remove_tag(str(client.queue_client.get_id()))
 
             elif state is State.LAST_IN:
                 # Mover al cliente a su nuevo lugar en la cola de espera (gráfico).
@@ -301,6 +308,7 @@ if __name__ == '__main__':
 
         # Dibujar los elementos en pantalla.
         atm.draw(screen, queue)
+        grant.draw(screen)
         for client_it in clients_queue + clients_done:
             client_it.draw(screen, queue)
         
