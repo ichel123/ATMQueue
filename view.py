@@ -377,7 +377,8 @@ class Table:
         self.cell_values = [['' for j in range(cols)] for i in range(rows)]
         self.outline = outline
         self.font = pygame.font.SysFont(font_name if font_name else 'Arial', font_size if font_size else 10)
-
+        self.rows = rows
+        
     def set_value(self, value: str, row: int, col: int) -> None:
         """Asigna el valor a la celda indicada.
         value: Valor a asignar a la celda.
@@ -412,9 +413,21 @@ class Table:
         """Añade una nueva fila al final de la tabla.
         height: Alto de la nueva columna."""
 
-        self.cell_values.append(['' for j in range(self.col_widths)])
+        self.cell_values.append(['' for j in range(len(self.col_widths))])
         self.row_heights.append(height)
-
+        self.rows += 1
+    
+    def get_total_rows(self) -> int:
+        """Retorna la cantidad de filas en la tabla.
+        rows: cantidad de filas"""
+        return self.rows
+    
+    def proccess_client(self, row: int, id_aux: int, current_clients: [], queue_size: int) -> None:
+        """Rellena cada fila de la tabla con los datos correspondientes
+        a cada cliente a medida que es atendido."""
+ 
+        
+        
     def draw(self, surface: pygame.Surface) -> None:
         """Dibuja la tabla correspondientemente.
         surface: Superficie sobre la que se debe dibujar la tabla."""
@@ -426,7 +439,7 @@ class Table:
                 rect = pygame.Rect(x, y, self.col_widths[col_index], self.row_heights[row_index])
                 x += rect.width - self.outline
                 pygame.draw.rect(surface, 'Black', rect, self.outline)
-                text_surface = self.font.render(value, True, 'Black')
+                text_surface = self.font.render(str(value), True, 'Black')
                 surface.blit(
                     text_surface,
                     (
@@ -498,7 +511,7 @@ class Grant:
 
         self.tags.append(tag)
         self.tags_active.append(True)
-
+        
         tag_surface = self.font.render(tag, True, 'Black')
         tag_rect = tag_surface.get_rect(
             topleft = (
@@ -541,7 +554,6 @@ class Grant:
         tag: Etiqueta a la cual dar línea gruesa."""
 
         index = self.tags.index(tag)
-
         lines_surface = pygame.Surface(
             (
                 self.lines_surface.get_width() + params.GRANT_TIME_WIDTH,

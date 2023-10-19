@@ -24,6 +24,12 @@ if __name__ == '__main__':
     waiting = True
     client: view.Client = None
     time = 1
+    current_id =  0
+    restart_time = 0
+    id_changed = False
+    restart_time_used = False
+    counter_sols = 0
+    headers = ["Proceso","T.LLegada","Ráfaga","T.Comienzo","T.Final","T.Retorno","T.Espera"]
 
     # Declaración del evento para cambio de estado y si la ejecución es automática.
     AUTOMATIC_STATE_CHANGE = pygame.USEREVENT + 1
@@ -34,14 +40,22 @@ if __name__ == '__main__':
     MANUAL_STATE_CHANGE = pygame.USEREVENT + 2
 
     # Diagrama de Grant
-    grant = view.Grant(400, 300, 350, 250, 'Comic Sans MS', 15)
+    grant = view.Grant(600, 300, 350, 250, 'Comic Sans MS', 15)
 
+    # Tabla
+    table = view.Table(50, 300, 70, 20, 4, len(headers), 1)
+    
     # Instanciación de la cola y respectivos representantes gráficos
     queue = logic.ATM_Queue(params.ATM_CAPACITY)
     atm = view.ATM(params.X_INIT_POS, params.Y_INIT_POS, queue_elements_font)
     clients_queue = []
+    current_clients = []
     clients_done = []
     x_pos = atm.rect.right + params.PADDING
+    
+    for i in range(len(headers)):
+        table.set_value(headers[i],0,i)
+    
     for i in range(3):
         queue_client = logic.Queue_Client(i, random.randint(1,15))
         clients_queue.append(
@@ -53,38 +67,43 @@ if __name__ == '__main__':
                 0.9 * params.STATE_CHANGE_TIME
             )
         )
+        
+        table.set_value(queue_client.get_id(),i+1,0)
+        table.set_value(time,i+1,1)
+        table.set_value(queue_client.get_number_of_requests(),i+1,2)
         x_pos = clients_queue[-1].rect.right + params.PADDING
         queue.enqueue(queue_client)
+        current_clients.append([queue_client.get_id(),queue_client.get_number_of_requests(), time])
         grant.add_tag(str(queue_client.get_id()))
-
+    
     # Instanciación de etiquetas
-    time_tag = view.Tag(20, 360, f'Tiempo: {time}', 'Comic Sans MS', 15, 'Black')
+    time_tag = view.Tag(750, 5, f'Tiempo: {time}', 'Comic Sans MS', 15, 'Black')
     tag_list = [
-        view.Tag(20, 480, 'Id:', 'Comic Sans MS', 15, 'Black'),
-        view.Tag(20, 520, 'Solicitudes:', 'Comic Sans MS', 15, 'Black'),
+        view.Tag(750, 100, 'Id:', 'Comic Sans MS', 15, 'Black'),
+        view.Tag(820, 100, 'Solicitudes:', 'Comic Sans MS', 15, 'Black'),
         time_tag
     ]
 
     # Instanciación de cajas de texto
     textbox_list = []
 
-    id_textbox = view.Textbox(120, 480, 100, 30, 2, 'Comic Sans MS', 15)
+    id_textbox = view.Textbox(775, 100, 40, 30, 2, 'Comic Sans MS', 15)
     textbox_list.append(id_textbox)
 
-    requests_textbox = view.Textbox(120, 520, 100, 30, 2, 'Comic Sans MS', 15)
+    requests_textbox = view.Textbox(910, 100, 40, 30, 2, 'Comic Sans MS', 15)
     textbox_list.append(requests_textbox)
 
     # Instanciación de botones
     button_list = []
 
-    automatic_button = view.Button(20, 400, 200, 30, 2, 'Encender Automático', 'Comic Sans MS', 15)
+    automatic_button = view.Button(750, 30, 200, 30, 2, 'Encender Automático', 'Comic Sans MS', 15)
     automatic_button.box_color_idle = 'Red'
     button_list.append(automatic_button)
 
-    nextstep_button = view.Button(20, 440, 200, 30, 2, 'Siguiente Paso', 'Comic Sans MS', 15)
+    nextstep_button = view.Button(750, 65, 200, 30, 2, 'Siguiente Paso', 'Comic Sans MS', 15)
     button_list.append(nextstep_button)
 
-    addclient_button = view.Button(20, 560, 200, 30, 2, 'Añadir Cliente', 'Comic Sans MS', 15)
+    addclient_button = view.Button(750, 140, 200, 30, 2, 'Añadir Cliente', 'Comic Sans MS', 15)
     button_list.append(addclient_button)
 
     # Acciones de los botones
@@ -140,14 +159,18 @@ if __name__ == '__main__':
             )
         )
         queue.enqueue(queue_client)
+        current_clients.append([queue_client.get_id(),queue_client.get_number_of_requests(), time])
         grant.add_tag(str(queue_client.get_id()))
-
+        table.add_row(20)
+        table.set_value(queue_client.get_id(),table.get_total_rows()-1,0)
+        table.set_value(time,table.get_total_rows()-1,1)
+        table.set_value(queue_client.get_number_of_requests(),table.get_total_rows()-1,2)
         id_textbox.text = ''
         requests_textbox.text = ''
 
         if state is State.HALT:
             state = State.LAST_IN
-
+    
     addclient_button.action = addclient_button_action
 
     # Ejecución del programa
@@ -182,7 +205,7 @@ if __name__ == '__main__':
             if event.type == pygame.KEYDOWN:
                 for textbox in textbox_list:
                     textbox.add_text(event.unicode)
-
+            
         screen.fill('White')
 
         # Máquina de estados.
@@ -193,10 +216,87 @@ if __name__ == '__main__':
                 try:
                     # Cliente a la cabeza de la cola.
                     client = clients_queue[0]
-                    
+                    id_aux = client.queue_client.get_id()
                     queue.dequeue()
+                    if current_id == 0 and id_aux == 0 and not id_changed:
+                        current_clients[current_id].append(1)
+                        id_changed = True
+
+                    if current_id != id_aux or queue._Queue__size <= 2:
+
+                        if len(current_clients[current_id]) < 7:
+                            current_clients[current_id].append(time)  #Se agrega t_final
+                            current_clients[current_id].append(current_clients[current_id][4] - current_clients[current_id][2])
+                            current_clients[current_id].append(current_clients[current_id][5] - (current_clients[current_id][4] - current_clients[current_id][3]))
+                            table.set_value(str(current_clients[current_id][3]),current_id + 1,3)
+                            table.set_value(str(current_clients[current_id][4]),current_id + 1,4)
+                            table.set_value(str(current_clients[current_id][5]),current_id + 1,5)
+                            table.set_value(str(current_clients[current_id][6]),current_id + 1,6)
+                            
+                            if len(current_clients) == current_id + 1:
+                                restart_time = time
+                            if len(current_clients) > current_id + 1: 
+                                current_clients[current_id+1].append(time) #Se agrega t_inicial para el siguiente cliente
+                            current_id = id_aux
+                        else:
+                            if queue._Queue__size <= 2:
+                                requests_counter += 1
+                            
+                            is_less_equals_cero = True if current_clients[current_id][1] - params.ATM_CAPACITY <= 0 else False
+                            if (queue._Queue__size <= 2 and not is_less_equals_cero and requests_counter == current_clients[current_id][1] - params.ATM_CAPACITY):
+                                requests_counter = 0
+                                current_id = id_aux
+
+                                if not restart_time_used:
+                                    current_clients[current_id][3] = restart_time
+                                    restart_time_used = True
+                                table.add_row(20)
+                                current_clients[current_id][1] = current_clients[current_id][1] - params.ATM_CAPACITY
+                                current_clients[current_id][4] = time
+                                current_clients[current_id][5] = current_clients[current_id][4] - current_clients[current_id][2]
+                                current_clients[current_id][6] = current_clients[current_id][5] - (current_clients[current_id][4] - current_clients[current_id][3])
+                                
+                                table.set_value(str(current_id),table.get_total_rows()-1,0)
+                                table.set_value(str(current_clients[current_id][1]),table.get_total_rows()-1,2)
+                                table.set_value(str(current_clients[current_id][2]),table.get_total_rows()-1,1)
+                                table.set_value(str(current_clients[current_id][3]),table.get_total_rows()-1,3)
+                                table.set_value(str(current_clients[current_id][4]),table.get_total_rows()-1,4)
+                                table.set_value(str(current_clients[current_id][5]),table.get_total_rows()-1,5)
+                                table.set_value(str(current_clients[current_id][6]),table.get_total_rows()-1,6)
+
+                                if len(current_clients) > current_id + 1: 
+                                    current_clients[current_id+1][3] = time #Se agrega t_inicial para el siguiente cliente    
+                                
+                            else:
+                                if queue._Queue__size > 2: 
+                                    if not restart_time_used:
+                                        current_clients[current_id][3] = restart_time
+                                        restart_time_used = True
+                                    table.add_row(20)
+                                    current_clients[current_id][1] = current_clients[current_id][1] - params.ATM_CAPACITY
+                                    current_clients[current_id][4] = time
+                                    current_clients[current_id][5] = current_clients[current_id][4] - current_clients[current_id][2]
+                                    current_clients[current_id][6] = current_clients[current_id][5] - (current_clients[current_id][4] - current_clients[current_id][3])
+                                    
+                                    table.set_value(str(current_id),table.get_total_rows()-1,0)
+                                    table.set_value(str(current_clients[current_id][1]),table.get_total_rows()-1,2)
+                                    table.set_value(str(current_clients[current_id][2]),table.get_total_rows()-1,1)
+                                    table.set_value(str(current_clients[current_id][3]),table.get_total_rows()-1,3)
+                                    table.set_value(str(current_clients[current_id][4]),table.get_total_rows()-1,4)
+                                    table.set_value(str(current_clients[current_id][5]),table.get_total_rows()-1,5)
+                                    table.set_value(str(current_clients[current_id][6]),table.get_total_rows()-1,6)
+
+                                    
+                                    if len(current_clients) > current_id + 1: 
+                                        current_clients[current_id+1][3] = time #Se agrega t_inicial para el siguiente cliente 
+                                    if len(current_clients) == current_id + 1:
+                                        restart_time = time
+                                        restart_time_used = False
+                                    current_id = id_aux 
+                    
                     time += 1
                     grant.add_line(str(client.queue_client.get_id()))
+                    
                     if (queue.get_current_service() > 0):
                         state = State.LAST_IN
 
@@ -309,9 +409,10 @@ if __name__ == '__main__':
         # Dibujar los elementos en pantalla.
         atm.draw(screen, queue)
         grant.draw(screen)
+        table.draw(screen)
         for client_it in clients_queue + clients_done:
             client_it.draw(screen, queue)
-        
+
         for tag in tag_list:
             tag.draw(screen)
 
@@ -320,7 +421,7 @@ if __name__ == '__main__':
 
         for button in button_list:
             button.draw(screen)
-
+        
         # Actualizar pantalla y esperar.
         pygame.display.update()
         clock.tick()
