@@ -54,6 +54,11 @@ class Queue(Generic[T]):
 
         return aux_node.data
 
+    def get_size(self) -> int:
+        """Devuelve número de elementos en la cola."""
+
+        return self.__size
+
     def next_value(self, data: T) -> T:
         """Devuelve el siguiente elemento en la cola al elemento dado si éste está en la cola, de lo contrario devuelve None.
         data: Elemento que precede al elemento buscado."""
@@ -175,46 +180,72 @@ class Queue(Generic[T]):
 class Queue_Client:
     """Representa un cliente que espera en una cola de cajero."""
     
-    def __init__(self, id_client: str, n_requests: int):
-        """id_client: Id del cliente.
-        n_requests: Número de solicitudes del cliente."""
+    def __init__(self, id_client: str, n_requests: int, arrival_time: int, priority: int = None):
+        """Crea el cliente con la información correspondiente.
+        id_client: Id del cliente.
+        n_requests: Número de solicitudes del cliente.
+        arrival_time: Momento en el que llega el cliente.
+        priority: Prioridad del cliente."""
 
         if n_requests < 0:
             raise ValueError
 
         self.__id_client = id_client
         self.__n_requests = n_requests
-        self.__done = False if n_requests > 0 else True
+        self.__arrival_time = arrival_time
+        self.__current_time = arrival_time
+        self.__priority = priority
 
     def get_id(self) -> str:
+        """Devuelve el id del cliente."""
+
         return self.__id_client
 
     def get_number_of_requests(self) -> int:
+        """Devuelve el número de solicitudes restantes del cliente."""
+
         return self.__n_requests
 
     def respond_requests(self, quantity: int):
         """Disminuye el número de solicitudes del cliente según el número indicado.
         quantity: Número de solicitudes a atender."""
 
-        if not 0 <= quantity:
+        if quantity < 0:
             raise ValueError
 
         if quantity > self.__n_requests:
             quantity = self.__n_requests
 
         self.__n_requests -= quantity
-        if self.__n_requests == 0:
-            self.__done = True
+        self.__current_time += 1
 
     def is_done(self):
         """Verdadero si el cliente no tiene solicitudes pendientes. Falso de lo contrario."""
 
-        return self.__done
+        return self.__n_requests == 0
+
+    def get_arrival_time(self):
+        """Devuelve el tiempo en el que fue creado."""
+
+        return self.__arrival_time
+
+    def get_priority(self):
+        """Devuelve la prioridad del cliente."""
+
+        return self.__priority
+    
+    def get_final_time(self):
+        """Devuelve el tiempo en el que el cliente terminó o -1 si no ha terminado."""
+
+        if not self.is_done():
+            return -1
+
+        return self.__current_time - self.__arrival_time
 
     def __repr__(self):
         return f'{type(self).__name__}({self.__id_client}, {self.__n_requests})'
 
-class ATM_Queue(Queue[Queue_Client]):
+class Server_Queue(Queue[Queue_Client]):
     """Representa una cola donde al frente hay un cajero."""
 
     def __init__(self, capacity: int, *args: Queue_Client):
@@ -265,7 +296,32 @@ class ATM_Queue(Queue[Queue_Client]):
         return None
 
     def get_current_service(self) -> int:
+        """Devuelve el número de servicios que se han hecho con el cliente actual."""
+
         return self.__current_service
+
+    def remove(self, queue_client: Queue_Client) -> None:
+        """Elimina el cliente indicado de la lista."""
+
+        index = list(self).index(queue_client)
+        if index is 1:
+            self.__current_service = 0
+
+        super().dequeue(index)
 
     def __repr__(self) -> str:
         return f'{type(self).__name__}({str(list(self))[1:-1]})'
+
+class Priority_Server_Queue(Server_Queue):
+    """Representa una cola donde al frente hay un cajero,
+    pero los clientes son atendidos según su prioridad más baja."""
+
+    def enqueue(self, *args, **kwargs):
+        """Añade al cliente a la cola y lo coloca en la posición indicada según su prioridad."""
+
+        super().enqueue(*args, **kwargs)
+        # TODO Poner en su lugar el nuevo elemento
+        # El último elemento de la cola debe ser self._Queue__back,
+        # (El nuevo elemento ingresa siendo self._Queue__back y debe ser cambiado)
+        # self._Queue__back.next debe apuntar al primer elemento, self._Queue__front.
+        # Así mismo, self._Queue__front.prev debe apuntar a self._Queue__back
