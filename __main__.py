@@ -23,7 +23,7 @@ if __name__ == '__main__':
     table = view.Table(table_data, 10, 10, 100, 20, 1, 7, 2, 'Comic Sans MS', 15)
 
     # Instanciación del diagrama de Grant.
-    grant = view.Grant(400, 300, 375, 275, 'Comic Sans MS', 15)
+    grant = view.Grant(400, 230, 480, 270, 'Comic Sans MS', 15)
 
     # Instanciación de la cola.
     queue = logic.Priority_Server_Queue(params.DEFAULT_SERVER_CAPACITY)
@@ -47,7 +47,7 @@ if __name__ == '__main__':
             None,
             None
         )
-
+        
     # Clientes iniciales.
     for i in range(10):
         create_new_client(i)
@@ -56,39 +56,39 @@ if __name__ == '__main__':
     blocked: list[logic.Queue_Client] = []
 
     # Instanciación de etiquetas
-    time_tag = view.Tag(20, 360, f'Tiempo: {time}', 'Comic Sans MS', 15, 'Black')
+    time_tag = view.Tag(30, 250, f'Tiempo: {time}', 'Comic Sans MS', 15, 'Black')
     tag_list = [
-        view.Tag(20, 480, 'Id:', 'Comic Sans MS', 15, 'Black'),
-        view.Tag(20, 520, 'Solicitudes:', 'Comic Sans MS', 15, 'Black'),
+        view.Tag(80, 330, 'Id:', 'Comic Sans MS', 15, 'Black'),
+        view.Tag(20, 370, 'Solicitudes:', 'Comic Sans MS', 15, 'Black'),
         time_tag
     ]
 
     # Instanciación de cajas de texto
     textbox_list = []
 
-    id_textbox = view.Textbox(120, 480, 100, 30, 2, 'Comic Sans MS', 15)
+    id_textbox = view.Textbox(120, 330, 100, 30, 2, 'Comic Sans MS', 15)
     textbox_list.append(id_textbox)
 
-    requests_textbox = view.Textbox(120, 520, 100, 30, 2, 'Comic Sans MS', 15)
+    requests_textbox = view.Textbox(120, 370, 100, 30, 2, 'Comic Sans MS', 15)
     textbox_list.append(requests_textbox)
 
-    block_textbox = view.Textbox(250, 520, 100, 30, 2, 'Comic Sans MS', 15)
+    block_textbox = view.Textbox(120, 450, 100, 30, 2, 'Comic Sans MS', 15)
     textbox_list.append(block_textbox)
 
     # Instanciación de botones
     button_list = []
 
-    automatic_button = view.Button(20, 400, 200, 30, 2, 'Encender Automático', 'Comic Sans MS', 15)
+    automatic_button = view.Button(120, 250, 200, 30, 2, 'Encender Automático', 'Comic Sans MS', 15)
     automatic_button.box_color_idle = 'Red'
     button_list.append(automatic_button)
 
-    manual_button = view.Button(20, 440, 200, 30, 2, 'Siguiente Paso', 'Comic Sans MS', 15)
+    manual_button = view.Button(120, 290, 200, 30, 2, 'Siguiente Paso', 'Comic Sans MS', 15)
     button_list.append(manual_button)
 
-    addclient_button = view.Button(20, 560, 200, 30, 2, 'Añadir Cliente', 'Comic Sans MS', 15)
+    addclient_button = view.Button(120, 410, 200, 30, 2, 'Añadir Cliente', 'Comic Sans MS', 15)
     button_list.append(addclient_button)
 
-    block_button = view.Button(250, 560, 100, 30, 2, 'Blq/Dsblq', 'Comic Sans MS', 15)
+    block_button = view.Button(230, 450, 90, 30, 2, 'Blq/Dsblq', 'Comic Sans MS', 15)
     button_list.append(block_button)
 
     # Acciones de los botones
@@ -129,7 +129,7 @@ if __name__ == '__main__':
             requests_textbox.text = '¡ERROR!'
             return
 
-        create_new_client(id_textbox.text)
+        create_new_client(int(id_textbox.text))
 
         id_textbox.text = ''
         requests_textbox.text = ''
@@ -156,13 +156,17 @@ if __name__ == '__main__':
         client_row = table_data[table_data['Proceso'] == str(queue_client.get_id())].iloc[-1]
 
         if searched_list is not blocked:
+            print("tam antes: ", queue.get_size())
             queue.remove(queue_client)
+            print("tam despues: ", queue.get_size())
             blocked.append(queue_client)
             client_row['Estado'] = 'Bloqueado'
 
         else:
+            print("tam antes: ", queue.get_size())
             blocked.remove(queue_client)
             queue.enqueue(queue_client)
+            print("tam despues: ", queue.get_size())
             client_row['Estado'] = 'Esperando'
 
         table_data.loc[client_row.name] = client_row

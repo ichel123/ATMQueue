@@ -304,6 +304,7 @@ class Server_Queue(Queue[Queue_Client]):
         """Elimina el cliente indicado de la lista."""
 
         index = list(self).index(queue_client)
+        print(index)
         if index is 1:
             self.__current_service = 0
 
@@ -316,12 +317,33 @@ class Priority_Server_Queue(Server_Queue):
     """Representa una cola donde al frente hay un cajero,
     pero los clientes son atendidos según su prioridad más baja."""
 
-    def enqueue(self, *args, **kwargs):
+    def enqueue(self, client: Queue_Client):
         """Añade al cliente a la cola y lo coloca en la posición indicada según su prioridad."""
 
-        super().enqueue(*args, **kwargs)
         # TODO Poner en su lugar el nuevo elemento
         # El último elemento de la cola debe ser self._Queue__back,
         # (El nuevo elemento ingresa siendo self._Queue__back y debe ser cambiado)
         # self._Queue__back.next debe apuntar al primer elemento, self._Queue__front.
         # Así mismo, self._Queue__front.prev debe apuntar a self._Queue__back
+        
+        super().enqueue(client)
+        
+        front_client = self._Queue__front.next
+
+        while front_client != self._Queue__front:
+            if client.get_priority() < front_client.data.get_priority() or (client.get_priority() == front_client.data.get_priority() and client.get_id() < front_client.data.get_id()):
+                new_client = self._Queue__Node(client, front_client.prev, front_client)
+                front_client.prev.next = new_client
+                front_client.prev = new_client
+                if front_client == self._Queue__front.next:
+                    self._Queue__front.next = new_client
+                return
+            front_client = front_client.next
+        
+        
+        
+        
+        
+
+            
+        
