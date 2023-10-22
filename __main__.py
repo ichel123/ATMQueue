@@ -250,6 +250,11 @@ if __name__ == '__main__':
         screen.fill('White')
 
         # Actualizando elementos.
+        if automatic:
+            manual_button.active = False
+        else:
+            manual_button.active = True
+            
         for button in button_list:
             button.update()
 
