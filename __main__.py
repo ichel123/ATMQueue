@@ -49,8 +49,8 @@ if __name__ == '__main__':
         )
 
     # Clientes iniciales.
-    for i in range(10):
-        create_new_client(i,random.randint(1,15),random.randint(1,5))
+    for i in range(5):
+        create_new_client(i+1,random.randint(1,15),random.randint(1,5))
 
     # Lista de clientes bloquados.
     blocked: list[logic.Queue_Client] = []
@@ -61,6 +61,7 @@ if __name__ == '__main__':
         view.Tag(80, 330, 'Id:', 'Comic Sans MS', 15, 'Black'),
         view.Tag(20, 370, 'Solicitudes:', 'Comic Sans MS', 15, 'Black'),
         view.Tag(30, 410, 'Prioridad:', 'Comic Sans MS', 15, 'Black'),
+        view.Tag(80, 450, 'Id:', 'Comic Sans MS', 15, 'Black'),
         time_tag
     ]
 
@@ -72,12 +73,12 @@ if __name__ == '__main__':
 
     requests_textbox = view.Textbox(120, 370, 100, 30, 2, 'Comic Sans MS', 15)
     textbox_list.append(requests_textbox)
-
-    block_textbox = view.Textbox(120, 500, 100, 30, 2, 'Comic Sans MS', 15)
-    textbox_list.append(block_textbox)
     
     priority_textbox = view.Textbox(120, 410, 100, 30, 2, 'Comic Sans MS', 15)
     textbox_list.append(priority_textbox)
+
+    block_textbox = view.Textbox(120, 450, 100, 30, 2, 'Comic Sans MS', 15)
+    textbox_list.append(block_textbox)
 
     # Instanciación de botones
     button_list = []
@@ -89,10 +90,10 @@ if __name__ == '__main__':
     manual_button = view.Button(120, 290, 200, 30, 2, 'Siguiente Paso', 'Comic Sans MS', 15)
     button_list.append(manual_button)
 
-    addclient_button = view.Button(120, 450, 200, 30, 2, 'Añadir Cliente', 'Comic Sans MS', 15)
+    addclient_button = view.Button(230, 330, 90, 110, 2, 'Añadir', 'Comic Sans MS', 15)
     button_list.append(addclient_button)
 
-    block_button = view.Button(230, 500, 90, 30, 2, 'Blq/Dsblq', 'Comic Sans MS', 15)
+    block_button = view.Button(230, 450, 90, 30, 2, 'Blq/Dsblq', 'Comic Sans MS', 15)
     button_list.append(block_button)
 
 
@@ -154,7 +155,7 @@ if __name__ == '__main__':
             priority_textbox.text = '¡ERROR!'
             return
 
-        create_new_client(int(id_textbox.text),int(requests_textbox.text),int(priority))
+        create_new_client(int(id_textbox.text), int(requests), int(priority))
 
         id_textbox.text = ''
         requests_textbox.text = ''
