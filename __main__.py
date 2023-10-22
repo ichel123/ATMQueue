@@ -126,7 +126,8 @@ if __name__ == '__main__':
         global id_textbox, requests_textbox
 
         if    id_textbox.text in [str(queue_client.get_id()) for queue_client in list(queue)[1:]]\
-           or id_textbox.text in [str(queue_client.get_id()) for queue_client in blocked]:
+           or id_textbox.text in [str(queue_client.get_id()) for queue_client in blocked]\
+           or id_textbox.text == '':
             id_textbox.text = '¡ERROR!'
             return
 
@@ -155,7 +156,7 @@ if __name__ == '__main__':
             priority_textbox.text = '¡ERROR!'
             return
 
-        create_new_client(int(id_textbox.text), int(requests), int(priority))
+        create_new_client(id_textbox.text, int(requests), int(priority))
 
         id_textbox.text = ''
         requests_textbox.text = ''
