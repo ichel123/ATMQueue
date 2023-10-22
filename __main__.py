@@ -23,15 +23,15 @@ if __name__ == '__main__':
     table = view.Table(table_data, 10, 10, 100, 20, 1, 7, 2, 'Comic Sans MS', 15)
 
     # Instanciación del diagrama de Grant.
-    grant = view.Grant(400, 230, 480, 270, 'Comic Sans MS', 15)
+    grant = view.Grant(400, 230, 480, 300, 'Comic Sans MS', 15)
 
     # Instanciación de la cola.
     queue = logic.Priority_Server_Queue(params.DEFAULT_SERVER_CAPACITY)
 
-    def create_new_client(id, n_requests, priority):
+    def create_new_client(id, n_requests, n_priority):
         """Crea un nuevo cliente para uso del programa."""
 
-        queue_client = logic.Queue_Client(id, n_requests, time, priority)
+        queue_client = logic.Queue_Client(id,n_requests, time, n_priority)
         queue.enqueue(queue_client)
         grant.add_tag(str(queue_client.get_id()))
 
@@ -47,10 +47,10 @@ if __name__ == '__main__':
             None,
             None
         )
-        
+
     # Clientes iniciales.
-    for i in range(3):
-        create_new_client(i, random.randint(1,15), random.randint(1,5))
+    for i in range(10):
+        create_new_client(i,random.randint(1,15),random.randint(1,5))
 
     # Lista de clientes bloquados.
     blocked: list[logic.Queue_Client] = []
@@ -60,6 +60,7 @@ if __name__ == '__main__':
     tag_list = [
         view.Tag(80, 330, 'Id:', 'Comic Sans MS', 15, 'Black'),
         view.Tag(20, 370, 'Solicitudes:', 'Comic Sans MS', 15, 'Black'),
+        view.Tag(30, 410, 'Prioridad:', 'Comic Sans MS', 15, 'Black'),
         time_tag
     ]
 
@@ -72,8 +73,11 @@ if __name__ == '__main__':
     requests_textbox = view.Textbox(120, 370, 100, 30, 2, 'Comic Sans MS', 15)
     textbox_list.append(requests_textbox)
 
-    block_textbox = view.Textbox(120, 450, 100, 30, 2, 'Comic Sans MS', 15)
+    block_textbox = view.Textbox(120, 500, 100, 30, 2, 'Comic Sans MS', 15)
     textbox_list.append(block_textbox)
+    
+    priority_textbox = view.Textbox(120, 410, 100, 30, 2, 'Comic Sans MS', 15)
+    textbox_list.append(priority_textbox)
 
     # Instanciación de botones
     button_list = []
@@ -85,11 +89,12 @@ if __name__ == '__main__':
     manual_button = view.Button(120, 290, 200, 30, 2, 'Siguiente Paso', 'Comic Sans MS', 15)
     button_list.append(manual_button)
 
-    addclient_button = view.Button(120, 410, 200, 30, 2, 'Añadir Cliente', 'Comic Sans MS', 15)
+    addclient_button = view.Button(120, 450, 200, 30, 2, 'Añadir Cliente', 'Comic Sans MS', 15)
     button_list.append(addclient_button)
 
-    block_button = view.Button(230, 450, 90, 30, 2, 'Blq/Dsblq', 'Comic Sans MS', 15)
+    block_button = view.Button(230, 500, 90, 30, 2, 'Blq/Dsblq', 'Comic Sans MS', 15)
     button_list.append(block_button)
+
 
     # Acciones de los botones
     def automatic_button_action() -> None:
@@ -125,15 +130,35 @@ if __name__ == '__main__':
             return
 
         try:
-            requests = int(requests_textbox.text)
+            requests = requests_textbox.text
+            if requests == '':
+                requests = random.randint(1, 15)
+            else:
+                requests = int(requests)
+                if requests <= 0 or requests > 15:
+                    requests_textbox.text = '¡ERROR!'
+                    return
         except ValueError:
             requests_textbox.text = '¡ERROR!'
             return
+        try:
+            priority = priority_textbox.text
+            if priority == '':
+                priority = random.randint(1, 5)
+            else:
+                priority = int(priority)
+                if priority <= 0 or priority > 5:
+                    priority_textbox.text = '¡ERROR!'
+                    return
+        except ValueError:
+            priority_textbox.text = '¡ERROR!'
+            return
 
-        create_new_client(int(id_textbox.text), requests, random.randint(1,5))
+        create_new_client(int(id_textbox.text),int(requests_textbox.text),int(priority))
 
         id_textbox.text = ''
         requests_textbox.text = ''
+        priority_textbox.text = ''
 
     addclient_button.action = addclient_button_action
 
