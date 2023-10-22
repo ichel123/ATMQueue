@@ -23,7 +23,7 @@ if __name__ == '__main__':
     table = view.Table(table_data, 10, 10, 100, 20, 1, 7, 2, 'Comic Sans MS', 15)
 
     # Instanciación del diagrama de Grant.
-    grant = view.Grant(400, 230, 480, 300, 'Comic Sans MS', 15)
+    grant = view.Grant(400, 250, 480, 280, 'Comic Sans MS', 15)
 
     # Instanciación de la cola.
     queue = logic.Priority_Server_Queue(params.DEFAULT_SERVER_CAPACITY)
