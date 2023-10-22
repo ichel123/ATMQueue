@@ -243,14 +243,18 @@ class Queue_Client:
         return self.__current_time - self.__arrival_time
 
     def __repr__(self):
-        return f'{type(self).__name__}({self.__id_client}, {self.__n_requests})'
+        return f'{type(self).__name__}({self.__id_client}, {self.__n_requests}{"" if self.__priority is None else f", {self.__priority}"})'
 
 class Server_Queue(Queue[Queue_Client]):
     """Representa una cola donde al frente hay un cajero."""
 
     def __init__(self, capacity: int, *args: Queue_Client):
         """capacity: Número de solicitudes que el cajero puede atender por turno.
+                     Si es exactamente 0, se atenderá hasta terminar.
         args: Clientes en la cola."""
+
+        if capacity < 0:
+            raise ValueError
 
         super().__init__()
         self._Queue__front = Queue._Queue__Node("Servidor")
@@ -270,7 +274,7 @@ class Server_Queue(Queue[Queue_Client]):
         """Agrega un cliente al final de la cola.
         client: Cliente a agregar a la cola."""
 
-        if type(client) is not Queue_Client and client != 'Servidor':
+        if type(client) is not Queue_Client:
             raise ValueError
 
         super().enqueue(client)
@@ -284,7 +288,8 @@ class Server_Queue(Queue[Queue_Client]):
 
         self._Queue__front.next.data.respond_requests(1)
         self.__current_service += 1
-        if     self.__current_service < self.__capacity \
+        if     self.__current_service < self.__capacity\
+            or self.__capacity == 0\
            and not self._Queue__front.next.data.is_done():
             return None
         
@@ -304,8 +309,7 @@ class Server_Queue(Queue[Queue_Client]):
         """Elimina el cliente indicado de la lista."""
 
         index = list(self).index(queue_client)
-        print(index)
-        if index is 1:
+        if index == 1:
             self.__current_service = 0
 
         super().dequeue(index)
@@ -319,26 +323,37 @@ class Priority_Server_Queue(Server_Queue):
 
     def enqueue(self, client: Queue_Client):
         """Añade al cliente a la cola y lo coloca en la posición indicada según su prioridad."""
-
-        # TODO Poner en su lugar el nuevo elemento
-        # El último elemento de la cola debe ser self._Queue__back,
-        # (El nuevo elemento ingresa siendo self._Queue__back y debe ser cambiado)
-        # self._Queue__back.next debe apuntar al primer elemento, self._Queue__front.
-        # Así mismo, self._Queue__front.prev debe apuntar a self._Queue__back
         
-        super().enqueue(client)
+        if type(client) is not Queue_Client:
+            raise ValueError
         
-        front_client = self._Queue__front.next
+        if client.get_priority() is None:
+            raise ValueError
+        
+        self._Queue__size += 1
+        
+        new_node = Queue._Queue__Node(client)
+        aux_node = self._Queue__front.next
 
-        while front_client != self._Queue__front:
-            if client.get_priority() < front_client.data.get_priority() or (client.get_priority() == front_client.data.get_priority() and client.get_id() < front_client.data.get_id()):
-                new_client = self._Queue__Node(client, front_client.prev, front_client)
-                front_client.prev.next = new_client
-                front_client.prev = new_client
-                if front_client == self._Queue__front.next:
-                    self._Queue__front.next = new_client
-                return
-            front_client = front_client.next
+        while aux_node is not self._Queue__front:
+            if  client.get_priority() < aux_node.data.get_priority():
+                break
+            
+            aux_node = aux_node.next
+
+        if self.get_current_service() > 0 and aux_node is self._Queue__front.next:
+            aux_node = aux_node.next
+
+        new_node.next = aux_node
+        new_node.prev = aux_node.prev
+
+        aux_node.prev.next = new_node
+        aux_node.prev = new_node
+
+        if aux_node is self._Queue__front:
+            self._Queue__back = new_node
+
+        return
         
         
         

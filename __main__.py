@@ -28,10 +28,10 @@ if __name__ == '__main__':
     # Instanciación de la cola.
     queue = logic.Priority_Server_Queue(params.DEFAULT_SERVER_CAPACITY)
 
-    def create_new_client(id):
+    def create_new_client(id, n_requests, priority):
         """Crea un nuevo cliente para uso del programa."""
 
-        queue_client = logic.Queue_Client(id, random.randint(1,15), time, random.randint(1,5))
+        queue_client = logic.Queue_Client(id, n_requests, time, priority)
         queue.enqueue(queue_client)
         grant.add_tag(str(queue_client.get_id()))
 
@@ -49,8 +49,8 @@ if __name__ == '__main__':
         )
         
     # Clientes iniciales.
-    for i in range(10):
-        create_new_client(i)
+    for i in range(3):
+        create_new_client(i, random.randint(1,15), random.randint(1,5))
 
     # Lista de clientes bloquados.
     blocked: list[logic.Queue_Client] = []
@@ -119,7 +119,8 @@ if __name__ == '__main__':
 
         global id_textbox, requests_textbox
 
-        if id_textbox.text in [str(queue_client.get_id()) for queue_client in list(queue)[1:]]:
+        if    id_textbox.text in [str(queue_client.get_id()) for queue_client in list(queue)[1:]]\
+           or id_textbox.text in [str(queue_client.get_id()) for queue_client in blocked]:
             id_textbox.text = '¡ERROR!'
             return
 
@@ -129,7 +130,7 @@ if __name__ == '__main__':
             requests_textbox.text = '¡ERROR!'
             return
 
-        create_new_client(int(id_textbox.text))
+        create_new_client(int(id_textbox.text), requests, random.randint(1,5))
 
         id_textbox.text = ''
         requests_textbox.text = ''
@@ -156,17 +157,13 @@ if __name__ == '__main__':
         client_row = table_data[table_data['Proceso'] == str(queue_client.get_id())].iloc[-1]
 
         if searched_list is not blocked:
-            print("tam antes: ", queue.get_size())
             queue.remove(queue_client)
-            print("tam despues: ", queue.get_size())
             blocked.append(queue_client)
             client_row['Estado'] = 'Bloqueado'
 
         else:
-            print("tam antes: ", queue.get_size())
             blocked.remove(queue_client)
             queue.enqueue(queue_client)
-            print("tam despues: ", queue.get_size())
             client_row['Estado'] = 'Esperando'
 
         table_data.loc[client_row.name] = client_row
@@ -198,9 +195,9 @@ if __name__ == '__main__':
                     queue.dequeue()
                     # Cuando se terminó de atender a un cliente.
                     if queue.get_current_service() == 0:
-                        client_row['T. Final'] = time
-                        client_row['T. Retorno'] = client_row['T. Final'] - client_row['T. Comienzo']
-                        client_row['T. Espera'] = client_row['T. Final'] - client_row['Ráfaga']
+                        client_row['T. Final'] = time + 1
+                        client_row['T. Retorno'] = client_row['T. Final'] - client_row['T. Llegada']
+                        client_row['T. Espera'] = client_row['T. Retorno'] - client_row['Ráfaga']
                         client_row['Estado'] = 'Terminado'
                         grant.remove_tag(str(queue_client.get_id()))
 
