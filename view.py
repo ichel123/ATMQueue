@@ -1,179 +1,8 @@
 """Representaciones gráficas para la simulación gráfica de una cola de cajero."""
 
-import pygame, math
+import pygame, math, pandas, numpy
 import logic, params
 from typing import Callable
-
-class ATM:
-    """Representa gráficamente el cajero que atiende a los clientes.
-    Señala quién es el siguiente cliente."""
-
-    def __init__(self, x: int, y: int, font: pygame.font.Font, *args, **kwargs) -> None:
-        """x: Posición en x de la esquina superior izquierda del cajero.
-        y: Posición en y de la esquina superior izquierda del cajero.
-        font: Letra con la cual escribir la etiqueta siguiente."""
-
-        super().__init__(*args, **kwargs)
-        self.image = pygame.image.load('atm.png').convert_alpha()
-        self.image = pygame.transform.scale_by(self.image, params.GRAPH_HEIGHT/self.image.get_height())
-        self.rect = self.image.get_rect(topleft=(x,y))
-        self.font = font
-
-    def draw(self, surface: pygame.Surface, queue: logic.ATM_Queue) -> None:
-        """Dibuja el cajero en la superficie indicada.
-        surface: Superficie sobre la cuál se dibujará el cajero.
-        queue: Queue que contiene los clientes en espera."""
-
-        try:
-            next_value = list(queue)[1]
-        except IndexError:
-            next_value = list(queue)[0]
-
-        next_text_surface = self.font.render(
-            f'sig: {next_value.get_id() if type(next_value) == logic.Queue_Client else next_value}',
-            True,
-            'Black'
-        )
-
-        surface.blit(self.image, self.rect)
-        surface.blit(
-            next_text_surface,
-            (
-                self.rect.centerx - next_text_surface.get_width()/2,
-                self.rect.bottom + params.PADDING
-            )
-        )
-
-class Client:
-    """Representa gráficamente un cliente en la cola de espera.
-    Señala su id, el número de solicitudes restantes y el siguiente cliente de la cola."""
-
-    @classmethod
-    def current_pos(cls, t: int, a: int, b: int, t_1: int) -> float:
-        """Dado un tiempo actual, un destino, un origen y un tiempo final,
-        calcula la posición actual de una partícula que recorre un espado unidimencional
-        usando una función senosoidal."""
-
-        if not 0 <= t:
-            raise ValueError
-
-        if t > t_1:
-            t = t_1
-
-        return (math.sin(math.pi * t / t_1 - math.pi / 2) + 1) * (b - a) / 2 + a
-
-    def __init__(self, x: int, y: int, queue_client: logic.Queue_Client, font: pygame.font.Font, movement_time_total: int, *args, **kwargs) -> None:
-        """x: Posición en x de la esquina superior izquierda del cliente.
-        y: Posición en y de la esquina superior izquierda del cliente.
-        queue_client: Representación lógica del cliente.
-        font: Fuente con la que se escriben las etiquetas.
-        movement_time_total: Tiempo en el que el cliente debe completar un movimiento."""
-
-        super().__init__(*args, **kwargs)
-        self.image = pygame.image.load('client.png').convert_alpha()
-        self.image = pygame.transform.scale_by(self.image, params.GRAPH_HEIGHT/self.image.get_height())
-        self.rect = self.image.get_rect(topleft=(x,y))
-        self.queue_client = queue_client
-
-        self.origin_point = x, y
-        self.destination_point = x, y
-        self.movement_time_initial = 0
-        self.movement_instant = movement_time_total
-        self.movement_time_total = movement_time_total
-        self.movement_started = False
-
-        self.font = font
-
-    def move(self, instant: int) -> tuple[int, int]:
-        """Mueve el cliente a su posición correspondiente para el instante ingresado.
-        instant: Instante actual sobre el cual se calcula la posición actual."""
-
-        if not self.movement_started:
-            self.movement_time_initial = instant
-            self.movement_started = True
-
-        self.movement_instant = instant - self.movement_time_initial
-        self.rect.x = Client.current_pos(
-            self.movement_instant,
-            self.origin_point[0],
-            self.destination_point[0],
-            self.movement_time_total
-        )
-        self.rect.y = Client.current_pos(
-            self.movement_instant,
-            self.origin_point[1],
-            self.destination_point[1],
-            self.movement_time_total
-        )
-
-        return self.rect.x, self.rect.y
-
-    def move_done(self) -> bool:
-        """Devuelve verdadero si se ha alcanzado la posición final
-        después de llamar el método move()."""
-
-        return self.movement_instant >= self.movement_time_total
-
-    def set_destination_point(self, x: int, y: int) -> None:
-        """Define la posición final del próximo movimeinto.
-        x: Posición final en x al finalizar el movimiento.
-        y: Posición final en y al finalizar el movimiento."""
-
-        self.origin_point = self.rect.x, self.rect.y
-        self.destination_point = x, y
-        self.movement_started = False
-
-    def draw(self, surface: pygame.Surface, queue: logic.ATM_Queue) -> None:
-        """Dibuja el cliente en la superficie indicada.
-        surface: Superficie sobre la cuál se dibujará el cliente.
-        queue: Queue que contiene los clientes en espera."""
-
-        id_text_surface = self.font.render(
-            f'id: {self.queue_client.get_id()}',
-            True,
-            'Black'
-        )
-        n_requests_text_surface = self.font.render(
-            f'sol: {self.queue_client.get_number_of_requests()}',
-            True,
-            'Black'
-        )
-        next_value = queue.next_value(self.queue_client)
-        next_value = next_value if next_value else '_'
-        next_text_surface = self.font.render(
-            f'sig: {next_value.get_id() if type(next_value) == logic.Queue_Client else next_value}',
-            True,
-            'Black'
-        )
-
-        surface.blit(self.image, self.rect)
-
-        y_pos = self.rect.bottom + params.PADDING
-        surface.blit(
-            id_text_surface,
-            (
-                self.rect.centerx - id_text_surface.get_width()/2,
-                y_pos
-            )    
-        )
-
-        y_pos += id_text_surface.get_height() + params.PADDING
-        surface.blit(
-            n_requests_text_surface,
-            (
-                self.rect.centerx - n_requests_text_surface.get_width()/2,
-                y_pos
-            )
-        )
-
-        y_pos += n_requests_text_surface.get_height() + params.PADDING
-        surface.blit(
-            next_text_surface,
-            (
-                self.rect.centerx - next_text_surface.get_width()/2,
-                y_pos
-            )
-        )
 
 class Button:
     """Representa un botón que puede ser oprimido y ejecutar una acción."""
@@ -289,6 +118,8 @@ class Textbox:
         self.text = ''
         self.active = False
 
+        self.padding = params.TEXTBOX_PADDING
+
         self.outline_color_active = 'Black'
         self.outline_color_inactive = 'Black'
 
@@ -352,15 +183,16 @@ class Textbox:
                 max(0, text_surface.get_width() - self.rect.width + 2 * self.padding),
                 0,
                 min(text_surface.get_width(), self.rect.width - 2 * self.padding),
-                self.rect.height - 10
+                self.rect.height - 2 * self.padding
             )
         )
 
 class Table:
-    """Clase que permite imprimir tablas dentro de Pygame."""
+    """Clase contenedora que imprime DataFrames en Pygame."""
 
-    def __init__(self, x: int, y: int, cell_widht: int, cell_height: int, rows: int, cols: int, outline: int, font_name: str = None, font_size: int = None):
+    def __init__(self, df: pandas.DataFrame, x: int, y: int, cell_widht: int, cell_height: int, rows: int, cols: int, outline: int, font_name: str = None, font_size: int = None):
         """Construye la tabla con las propiedades indicadas.
+        df: El data frame contenido a mostrar.
         x: Posición en x de la esquina superior izquierda de la tabla.
         y: Posición en y de la esquina superior izquierda de la tabla.
         cell_width: Ancho de todas las columnas.
@@ -371,21 +203,14 @@ class Table:
         font_name: Nombre de una fuente en el sistema para el texto de la tabla.
         font_size: Tamaño de la fuente para el texto de la tabla."""
 
+        self.df = df
         self.pos = pygame.math.Vector2(x, y)
-        self.col_widths = [cell_widht for i in range(cols)]
-        self.row_heights = [cell_height for i in range(rows)]
-        self.cell_values = [['' for j in range(cols)] for i in range(rows)]
+        self.default_cell_width = cell_widht
+        self.default_cell_height = cell_height
+        self.col_widths = {}
+        self.row_heights = {}
         self.outline = outline
         self.font = pygame.font.SysFont(font_name if font_name else 'Arial', font_size if font_size else 10)
-        self.rows = rows
-        
-    def set_value(self, value: str, row: int, col: int) -> None:
-        """Asigna el valor a la celda indicada.
-        value: Valor a asignar a la celda.
-        row: Fila de la celda.
-        col: Columna de la celda."""
-
-        self.cell_values[row][col] = value
 
     def set_width(self, width: int, col: int) -> None:
         """Modifica el ancho de una columna.
@@ -401,53 +226,58 @@ class Table:
 
         self.row_heights[row] = height
 
-    def add_col(self, width: int) -> None:
-        """Añade una nueva columna al final de la tabla.
-        width: Ancho de la nueva columna."""
-
-        for row in len(self.row_heights):
-            self.cell_values[row].append('')
-        self.col_widths.append(width)
-
-    def add_row(self, height: int) -> None:
-        """Añade una nueva fila al final de la tabla.
-        height: Alto de la nueva columna."""
-
-        self.cell_values.append(['' for j in range(len(self.col_widths))])
-        self.row_heights.append(height)
-        self.rows += 1
-    
-    def get_total_rows(self) -> int:
-        """Retorna la cantidad de filas en la tabla.
-        rows: cantidad de filas"""
-        return self.rows
-    
-    def proccess_client(self, row: int, id_aux: int, current_clients: [], queue_size: int) -> None:
-        """Rellena cada fila de la tabla con los datos correspondientes
-        a cada cliente a medida que es atendido."""
- 
-        
-        
     def draw(self, surface: pygame.Surface) -> None:
         """Dibuja la tabla correspondientemente.
         surface: Superficie sobre la que se debe dibujar la tabla."""
 
-        y = self.pos[1]
-        for row_index, row in enumerate(self.cell_values):
-            x = self.pos[0]
+        y_pos = self.pos[1]
+        x_pos = self.pos[0]
+        row_height = self.default_cell_height
+
+        for col_index, column in enumerate(self.df.columns):
+            col_width = self.default_cell_width
+
+            rect = pygame.Rect(x_pos, y_pos, col_width, row_height)
+            x_pos += rect.width - self.outline
+            pygame.draw.rect(surface, 'Black', rect, self.outline)
+            text_surface = self.font.render(str(column), True, 'Black')
+            surface.blit(
+                text_surface,
+                (
+                    rect.centerx - text_surface.get_width() / 2,
+                    rect.centery - text_surface.get_height() / 2
+                )
+            )
+
+        y_pos += row_height - self.outline
+
+        for row_index, (_, row) in enumerate(self.df.iterrows()):
+            x_pos = self.pos[0]
+            try:
+                row_height = self.row_heights[row_index]
+            except:
+                row_height = self.default_cell_height
+
             for col_index, value in enumerate(row):
-                rect = pygame.Rect(x, y, self.col_widths[col_index], self.row_heights[row_index])
-                x += rect.width - self.outline
+                try:
+                    col_width = self.col_widths[col_index]
+                except:
+                    col_width = self.default_cell_width
+
+                rect = pygame.Rect(x_pos, y_pos, col_width, row_height)
+                x_pos += rect.width - self.outline
                 pygame.draw.rect(surface, 'Black', rect, self.outline)
                 text_surface = self.font.render(str(value), True, 'Black')
-                surface.blit(
-                    text_surface,
-                    (
-                        rect.centerx - text_surface.get_width() / 2,
-                        rect.centery - text_surface.get_height() / 2
+                if value is not None:
+                    surface.blit(
+                        text_surface,
+                        (
+                            rect.centerx - text_surface.get_width() / 2,
+                            rect.centery - text_surface.get_height() / 2
+                        )
                     )
-                )
-            y += self.row_heights[row_index] - self.outline
+
+            y_pos += row_height - self.outline
 
 class Tag:
     """Clase que permite colocar etiquetas dentro de Pygame."""
@@ -511,7 +341,6 @@ class Grant:
 
         self.tags.append(tag)
         self.tags_active.append(True)
-        
         tag_surface = self.font.render(tag, True, 'Black')
         tag_rect = tag_surface.get_rect(
             topleft = (
@@ -549,11 +378,15 @@ class Grant:
         index = self.tags.index(tag)
         self.tags_active[index] = False
 
-    def add_line(self, tag: str) -> None:
+    def add_line(self, tag: str = None) -> None:
         """Añade una nueva sección al diagrama con línea gruesa para la etiqueta indicada.
         tag: Etiqueta a la cual dar línea gruesa."""
 
-        index = self.tags.index(tag)
+        if tag is not None:
+            index = self.tags.index(tag)
+        else:
+            index = -1
+
         lines_surface = pygame.Surface(
             (
                 self.lines_surface.get_width() + params.GRANT_TIME_WIDTH,
