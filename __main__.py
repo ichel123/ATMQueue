@@ -26,16 +26,23 @@ if __name__ == '__main__':
     grant = view.Grant(400, 250, 480, 280, 'Comic Sans MS', 15)
 
     # Instanciación de la cola.
-    queue = logic.Priority_Server_Queue(params.DEFAULT_SERVER_CAPACITY)
+    if params.ENABLE_PRIORITY:
+        queue = logic.Priority_Server_Queue(params.SERVER_CAPACITY)
+    else:
+        queue = logic.FIFO_Server_Queue(params.SERVER_CAPACITY)
 
-    def create_new_client(id, n_requests, n_priority):
+    def create_new_client(id: str, n_requests: int, n_priority: int):
         """Crea un nuevo cliente para uso del programa."""
+
+        if not params.ENABLE_PRIORITY:
+            n_priority = '-'
 
         queue_client = logic.Queue_Client(id,n_requests, time, n_priority)
         queue.enqueue(queue_client)
         grant.add_tag(str(queue_client.get_id()))
+        new_table_line(queue_client)
 
-        # Nueva fila en la tabla.
+    def new_table_line(queue_client: logic.Queue_Client):
         table_data.loc[len(table_data)] = (
             str(queue_client.get_id()),             # Id
             'Esperando',                            # Estado
@@ -50,7 +57,8 @@ if __name__ == '__main__':
 
     # Clientes iniciales.
     for i in range(5):
-        create_new_client(i+1,random.randint(1,15),random.randint(1,5))
+        id = chr(ord('A') + i)
+        create_new_client(id,random.randint(1,15),random.randint(1,5))
 
     # Cliente bloqueado actualmente.
     blocked_client: logic.Queue_Client = None
@@ -60,9 +68,11 @@ if __name__ == '__main__':
     tag_list = [
         view.Tag(80, 330, 'Id:', 'Comic Sans MS', 15, 'Black'),
         view.Tag(20, 370, 'Solicitudes:', 'Comic Sans MS', 15, 'Black'),
-        view.Tag(30, 410, 'Prioridad:', 'Comic Sans MS', 15, 'Black'),
         time_tag
     ]
+
+    if params.ENABLE_PRIORITY:
+        tag_list.append(view.Tag(30, 410, 'Prioridad:', 'Comic Sans MS', 15, 'Black'))
 
     # Instanciación de cajas de texto
     textbox_list = []
@@ -74,7 +84,8 @@ if __name__ == '__main__':
     textbox_list.append(requests_textbox)
     
     priority_textbox = view.Textbox(120, 410, 100, 30, 2, 'Comic Sans MS', 15)
-    textbox_list.append(priority_textbox)
+    if params.ENABLE_PRIORITY:
+        textbox_list.append(priority_textbox)
 
     # Instanciación de botones
     button_list = []
@@ -179,6 +190,15 @@ if __name__ == '__main__':
             block_button.tag = 'Desbloquear Bloqueado'
 
         client_row = table_data[table_data['Proceso'] == str(queue_client.get_id())].iloc[-1]
+        if client_row['T. Comienzo'] is not None:
+            client_row['T. Final'] = time + 1
+            client_row['T. Retorno'] = client_row['T. Final'] - client_row['T. Llegada']
+            client_row['T. Espera'] = client_row['T. Retorno'] - (client_row['T. Final'] - client_row['T. Comienzo'])
+            client_row['Estado'] = 'Terminado'
+            table_data.loc[client_row.name] = client_row
+            new_table_line(queue_client)
+            client_row = table_data.iloc[-1]
+
         client_row['Estado'] = new_state
         table_data.loc[client_row.name] = client_row
 
@@ -211,12 +231,16 @@ if __name__ == '__main__':
 
                     queue.dequeue()
                     # Cuando se terminó de atender a un cliente.
-                    if queue.get_current_service() == 0:
+                    if queue.get_current_service() == 0 and queue.get_size() == 1 or queue.get(1) is not queue_client:
                         client_row['T. Final'] = time + 1
                         client_row['T. Retorno'] = client_row['T. Final'] - client_row['T. Llegada']
-                        client_row['T. Espera'] = client_row['T. Retorno'] - client_row['Ráfaga']
+                        client_row['T. Espera'] = client_row['T. Retorno'] - (client_row['T. Final'] - client_row['T. Comienzo'])
                         client_row['Estado'] = 'Terminado'
-                        grant.remove_tag(str(queue_client.get_id()))
+                        if queue_client.is_done():
+                            grant.remove_tag(str(queue_client.get_id()))
+                        else:
+                            new_table_line(queue_client)
+                                    
 
                     # Actulizar la nueva fila en la tabla.
                     table_data.loc[client_row.name] = client_row
@@ -255,7 +279,7 @@ if __name__ == '__main__':
         for button in button_list:
             button.update()
 
-        time_tag.tag = f'Tiempo: {time}'
+        time_tag.tag = f'Tiempo: {time + 1}'
 
         # Dibujando elementos.
         for tag in tag_list:

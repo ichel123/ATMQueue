@@ -245,7 +245,7 @@ class Queue_Client:
     def __repr__(self):
         return f'{type(self).__name__}({self.__id_client}, {self.__n_requests}{"" if self.__priority is None else f", {self.__priority}"})'
 
-class Server_Queue(Queue[Queue_Client]):
+class FIFO_Server_Queue(Queue[Queue_Client]):
     """Representa una cola donde al frente hay un cajero."""
 
     def __init__(self, capacity: int, *args: Queue_Client):
@@ -284,12 +284,12 @@ class Server_Queue(Queue[Queue_Client]):
         Si el cliente ha terminado todas sus solicitudes, lo saca de la cola y lo devuelve. Si no, devuelve None."""
 
         if self._Queue__size <= 1:
-            None
+            raise IndexError
 
         self._Queue__front.next.data.respond_requests(1)
         self.__current_service += 1
-        if     self.__current_service < self.__capacity\
-            or self.__capacity == 0\
+        if (   self.__current_service < self.__capacity\
+            or self.__capacity == 0)\
            and not self._Queue__front.next.data.is_done():
             return None
         
@@ -317,7 +317,7 @@ class Server_Queue(Queue[Queue_Client]):
     def __repr__(self) -> str:
         return f'{type(self).__name__}({str(list(self))[1:-1]})'
 
-class Priority_Server_Queue(Server_Queue):
+class Priority_Server_Queue(FIFO_Server_Queue):
     """Representa una cola donde al frente hay un cajero,
     pero los clientes son atendidos según su prioridad más baja."""
 
