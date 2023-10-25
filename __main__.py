@@ -23,7 +23,7 @@ if __name__ == '__main__':
     table = view.Table(table_data, 10, 10, 100, 20, 1, 7, 2, 'Comic Sans MS', 15)
 
     # Instanciación del diagrama de Grant.
-    grant = view.Grant(400, 250, 480, 280, 'Comic Sans MS', 15)
+    grant = view.Grant(400, 350, 480, 280, 'Comic Sans MS', 15)
 
     # Instanciación de la cola.
     if params.ENABLE_PRIORITY:
@@ -64,10 +64,10 @@ if __name__ == '__main__':
     blocked_client: logic.Queue_Client = None
 
     # Instanciación de etiquetas
-    time_tag = view.Tag(30, 250, f'Tiempo: {time}', 'Comic Sans MS', 15, 'Black')
+    time_tag = view.Tag(120, 350, f'Tiempo: {time}', 'Comic Sans MS', 15, 'Black')
     tag_list = [
-        view.Tag(80, 330, 'Id:', 'Comic Sans MS', 15, 'Black'),
-        view.Tag(20, 370, 'Solicitudes:', 'Comic Sans MS', 15, 'Black'),
+        view.Tag(80, 480, 'Id:', 'Comic Sans MS', 15, 'Black'),
+        view.Tag(20, 520, 'Solicitudes:', 'Comic Sans MS', 15, 'Black'),
         time_tag
     ]
 
@@ -77,10 +77,10 @@ if __name__ == '__main__':
     # Instanciación de cajas de texto
     textbox_list = []
 
-    id_textbox = view.Textbox(120, 330, 100, 30, 2, 'Comic Sans MS', 15)
+    id_textbox = view.Textbox(120, 480, 100, 30, 2, 'Comic Sans MS', 15)
     textbox_list.append(id_textbox)
 
-    requests_textbox = view.Textbox(120, 370, 100, 30, 2, 'Comic Sans MS', 15)
+    requests_textbox = view.Textbox(120, 520, 100, 30, 2, 'Comic Sans MS', 15)
     textbox_list.append(requests_textbox)
     
     priority_textbox = view.Textbox(120, 410, 100, 30, 2, 'Comic Sans MS', 15)
@@ -90,17 +90,17 @@ if __name__ == '__main__':
     # Instanciación de botones
     button_list = []
 
-    automatic_button = view.Button(120, 250, 200, 30, 2, 'Encender Automático', 'Comic Sans MS', 15)
+    automatic_button = view.Button(120, 400, 200, 30, 2, 'Encender Automático', 'Comic Sans MS', 15)
     automatic_button.box_color_idle = 'Red'
     button_list.append(automatic_button)
 
-    manual_button = view.Button(120, 290, 200, 30, 2, 'Siguiente Paso', 'Comic Sans MS', 15)
+    manual_button = view.Button(120, 440, 200, 30, 2, 'Siguiente Paso', 'Comic Sans MS', 15)
     button_list.append(manual_button)
 
-    addclient_button = view.Button(230, 330, 90, 110, 2, 'Añadir', 'Comic Sans MS', 15)
+    addclient_button = view.Button(230, 480, 90, 110, 2, 'Añadir', 'Comic Sans MS', 15)
     button_list.append(addclient_button)
 
-    block_button = view.Button(120, 450, 200, 30, 2, 'Bloquear Primero', 'Comic Sans MS', 15)
+    block_button = view.Button(120, 600, 200, 30, 2, 'Bloquear Primero', 'Comic Sans MS', 15)
     button_list.append(block_button)
 
 
