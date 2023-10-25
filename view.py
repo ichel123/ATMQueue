@@ -378,14 +378,19 @@ class Grant:
         index = self.tags.index(tag)
         self.tags_active[index] = False
 
-    def add_line(self, tag: str = None) -> None:
+    def add_line(self, current_tag: str = None, blocked_tag: str = None) -> None:
         """Añade una nueva sección al diagrama con línea gruesa para la etiqueta indicada.
         tag: Etiqueta a la cual dar línea gruesa."""
 
-        if tag is not None:
-            index = self.tags.index(tag)
+        if current_tag is not None:
+            current_index = self.tags.index(current_tag)
         else:
-            index = -1
+            current_index = -1
+
+        if blocked_tag is not None:
+            blocked_index = self.tags.index(blocked_tag)
+        else:
+            blocked_index = -1
 
         lines_surface = pygame.Surface(
             (
@@ -428,10 +433,10 @@ class Grant:
             line_surface = pygame.Surface(
                 (
                     params.GRANT_TIME_WIDTH,
-                    tag_rect.height / (1 if i == index else 5)
+                    tag_rect.height / (1 if i == current_index else 5)
                 )
             )
-            line_surface.fill('Red' if i == index else 'Black')
+            line_surface.fill('Red' if i in (current_index, blocked_index) else 'Black')
 
             lines_surface.blit(
                 line_surface,
