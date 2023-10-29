@@ -42,13 +42,13 @@ if __name__ == '__main__':
         grant.add_tag(str(queue_client.get_id()))
         new_table_line(queue_client)
 
-    def new_table_line(queue_client: logic.Queue_Client):
+    def new_table_line(queue_client: logic.Queue_Client, arrival_time: int = None):
         table_data.loc[len(table_data)] = (
-            str(queue_client.get_id()),             # Id
-            'Esperando',                            # Estado
-            time + 1,                               # Tiempo de llegada
-            queue_client.get_priority(),            # Prioridad
-            queue_client.get_number_of_requests(),  # Número de solicitudes.
+            str(queue_client.get_id()),                         # Id
+            'Esperando',                                        # Estado
+            time + 1 if arrival_time is None else arrival_time, # Tiempo de llegada
+            queue_client.get_priority(),                        # Prioridad
+            queue_client.get_number_of_requests(),              # Número de solicitudes.
             None,
             None,
             None,
@@ -72,7 +72,7 @@ if __name__ == '__main__':
     ]
 
     if params.ENABLE_PRIORITY:
-        tag_list.append(view.Tag(30, 410, 'Prioridad:', 'Comic Sans MS', 15, 'Black'))
+        tag_list.append(view.Tag(30, 560, 'Prioridad:', 'Comic Sans MS', 15, 'Black'))
 
     # Instanciación de cajas de texto
     textbox_list = []
@@ -83,7 +83,7 @@ if __name__ == '__main__':
     requests_textbox = view.Textbox(120, 520, 100, 30, 2, 'Comic Sans MS', 15)
     textbox_list.append(requests_textbox)
     
-    priority_textbox = view.Textbox(120, 410, 100, 30, 2, 'Comic Sans MS', 15)
+    priority_textbox = view.Textbox(120, 560, 100, 30, 2, 'Comic Sans MS', 15)
     if params.ENABLE_PRIORITY:
         textbox_list.append(priority_textbox)
 
@@ -144,7 +144,7 @@ if __name__ == '__main__':
                 requests = random.randint(1, 15)
             else:
                 requests = int(requests)
-                if requests <= 0 or requests > 15:
+                if requests <= 0:
                     requests_textbox.text = '¡ERROR!'
                     return
         except ValueError:
@@ -196,7 +196,7 @@ if __name__ == '__main__':
             client_row['T. Espera'] = client_row['T. Retorno'] - (client_row['T. Final'] - client_row['T. Comienzo'])
             client_row['Estado'] = 'Terminado'
             table_data.loc[client_row.name] = client_row
-            new_table_line(queue_client)
+            new_table_line(queue_client, client_row['T. Llegada'])
             client_row = table_data.iloc[-1]
 
         client_row['Estado'] = new_state
@@ -239,7 +239,7 @@ if __name__ == '__main__':
                         if queue_client.is_done():
                             grant.remove_tag(str(queue_client.get_id()))
                         else:
-                            new_table_line(queue_client)
+                            new_table_line(queue_client, client_row['T. Llegada'])
                                     
 
                     # Actulizar la nueva fila en la tabla.
