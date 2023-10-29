@@ -65,10 +65,14 @@ if __name__ == '__main__':
 
     # Instanciación de etiquetas
     time_tag = view.Tag(120, 350, f'Tiempo: {time}', 'Comic Sans MS', 15, 'Black')
+    critical_section_tag = view.Tag(120, 270, f'En sección crítica: -', 'Comic Sans MS', 15, 'Black')
+    waiting_tag = view.Tag(120, 310, f'Procesos en espera: {queue.get_size() - 1}', 'Comic Sans MS', 15, 'Black')
     tag_list = [
         view.Tag(80, 480, 'Id:', 'Comic Sans MS', 15, 'Black'),
         view.Tag(20, 520, 'Solicitudes:', 'Comic Sans MS', 15, 'Black'),
-        time_tag
+        time_tag,
+        critical_section_tag,
+        waiting_tag
     ]
 
     if params.ENABLE_PRIORITY:
@@ -216,7 +220,7 @@ if __name__ == '__main__':
             if event.type == MANUAL_RESPOND or event.type == AUTOMATIC_RESPOND and automatic:
                 time += 1
                 # Sólo si hay clientes en fila.
-                if queue.get_size() >= 2:
+                if queue.get_size() > 1:
                     queue_client = queue.get(1)
                     grant.add_line(
                         current_tag=str(queue_client.get_id()),
@@ -225,11 +229,8 @@ if __name__ == '__main__':
 
                     # Localizar el cliente en la tabla.
                     client_row = table_data[table_data['Proceso'] == str(queue_client.get_id())].iloc[-1]
-                    client_row['Estado'] = 'En Ejecución'
-                    if client_row['T. Comienzo'] is None:
-                        client_row['T. Comienzo'] = time
-
                     queue.dequeue()
+
                     # Cuando se terminó de atender a un cliente.
                     if queue.get_current_service() == 0 and queue.get_size() == 1 or queue.get(1) is not queue_client:
                         client_row['T. Final'] = time + 1
@@ -279,7 +280,24 @@ if __name__ == '__main__':
         for button in button_list:
             button.update()
 
+        # Simulación Semáforo
         time_tag.tag = f'Tiempo: {time + 1}'
+        if queue.get_size() > 1:
+            queue_client = queue.get(1)
+            critical_section_tag.tag = f'En sección crítica: {queue_client.get_id()}'
+            waiting_tag.tag = f'Procesos en espera: {queue.get_size() - 2}'
+
+            # Dando tiempo de llegada a proceso actual.
+            client_row = table_data[table_data['Proceso'] == str(queue_client.get_id())].iloc[-1]
+            client_row['Estado'] = 'En Ejecución'
+            if client_row['T. Comienzo'] is None:
+                client_row['T. Comienzo'] = time + 1
+
+            table_data.loc[client_row.name] = client_row
+
+        else:
+            critical_section_tag.tag = f'En seccion crítica: -'
+            waiting_tag.tag = f'Procesos en espera: 0'
 
         # Dibujando elementos.
         for tag in tag_list:
