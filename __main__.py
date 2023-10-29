@@ -10,7 +10,7 @@ if __name__ == '__main__':
     screen = pygame.display.set_mode((params.SCREEN_WIDTH, params.SCREEN_HEIGHT))
     pygame.display.set_caption('Proceso de colas')
     clock = pygame.time.Clock()
-    time = 0
+    time = 1
 
     # Declaración de los eventos para atención y si la ejecución es automática.
     MANUAL_RESPOND = pygame.USEREVENT + 1
@@ -46,7 +46,7 @@ if __name__ == '__main__':
         table_data.loc[len(table_data)] = (
             str(queue_client.get_id()),                         # Id
             'Esperando',                                        # Estado
-            time + 1 if arrival_time is None else arrival_time, # Tiempo de llegada
+            time if arrival_time is None else arrival_time, # Tiempo de llegada
             queue_client.get_priority(),                        # Prioridad
             queue_client.get_number_of_requests(),              # Número de solicitudes.
             None,
@@ -195,7 +195,7 @@ if __name__ == '__main__':
 
         client_row = table_data[table_data['Proceso'] == str(queue_client.get_id())].iloc[-1]
         if client_row['T. Comienzo'] is not None:
-            client_row['T. Final'] = time + 1
+            client_row['T. Final'] = time
             client_row['T. Retorno'] = client_row['T. Final'] - client_row['T. Llegada']
             client_row['T. Espera'] = client_row['T. Retorno'] - (client_row['T. Final'] - client_row['T. Comienzo'])
             client_row['Estado'] = 'Terminado'
@@ -281,7 +281,7 @@ if __name__ == '__main__':
             button.update()
 
         # Simulación Semáforo
-        time_tag.tag = f'Tiempo: {time + 1}'
+        time_tag.tag = f'Tiempo: {time}'
         if queue.get_size() > 1:
             queue_client = queue.get(1)
             critical_section_tag.tag = f'En sección crítica: {queue_client.get_id()}'
@@ -291,7 +291,7 @@ if __name__ == '__main__':
             client_row = table_data[table_data['Proceso'] == str(queue_client.get_id())].iloc[-1]
             client_row['Estado'] = 'En Ejecución'
             if client_row['T. Comienzo'] is None:
-                client_row['T. Comienzo'] = time + 1
+                client_row['T. Comienzo'] = time
 
             table_data.loc[client_row.name] = client_row
 
