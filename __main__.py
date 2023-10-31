@@ -31,7 +31,7 @@ if __name__ == '__main__':
     else:
         queue = logic.FIFO_Server_Queue(params.SERVER_CAPACITY)
 
-    def create_new_client(id: str, n_requests: int, n_priority: int):
+    def create_new_client(id: str, n_requests: int, n_priority: int) -> None:
         """Crea un nuevo cliente para uso del programa."""
 
         if not params.ENABLE_PRIORITY:
@@ -42,7 +42,8 @@ if __name__ == '__main__':
         grant.add_tag(str(queue_client.get_id()))
         new_table_line(queue_client)
 
-    def new_table_line(queue_client: logic.Queue_Client, arrival_time: int = None):
+    def new_table_line(queue_client: logic.Queue_Client, arrival_time: int = None) -> None:
+        """Crea una nueva línea en la tabla con la información del cliente y el tiempo de llegada indicado."""
         table_data.loc[len(table_data)] = (
             str(queue_client.get_id()),                         # Id
             'Esperando',                                        # Estado
@@ -54,6 +55,35 @@ if __name__ == '__main__':
             None,
             None
         )
+
+    def expel_table_line(queue_client: logic.Queue_Client) -> pandas.Series:
+        """Devuelve una fila con la infomarción calculada tras la expulsión de un proceso."""
+
+        # Obtener todas las filas del proceso.
+        client_rows = table_data[table_data['Proceso'] == queue_client.get_id()].iloc
+
+        # Agregar el tiempo final en la última.
+        client_rows[-1, table_data.columns.get_loc('T. Final')] = time
+
+        # Agregar el tiempo de retorno en la última.
+        client_rows[-1, table_data.columns.get_loc('T. Retorno')] =\
+            client_rows[-1]['T. Final'] - client_rows[-1]['T. Llegada']
+
+        # Para calcular el tiempo de espera se inicia con el tiempo de retorno actual.
+        client_rows[-1, table_data.columns.get_loc('T. Espera')] = client_rows[-1]['T. Retorno']
+        # Se le resta la ráfaga ejecutada de cada fila del proceso.
+        for client_row in client_rows:
+            # Sólo se restan los que tienen el mismo tiempo de llegada.
+            if client_row['T. Llegada'] != client_rows[-1]['T. Llegada']:
+                continue
+            
+            client_rows[-1, table_data.columns.get_loc('T. Espera')] -=\
+                client_row['T. Final'] - client_row['T. Comienzo']
+
+        # Cambiar estado a expulsado.
+        client_rows[-1, table_data.columns.get_loc('Estado')] = 'Expulsado'
+
+        return client_rows[-1]
 
     # Clientes iniciales.
     for i in range(5):
@@ -193,18 +223,11 @@ if __name__ == '__main__':
             new_state = 'Bloqueado'
             block_button.tag = 'Desbloquear Bloqueado'
 
-        client_row = table_data[table_data['Proceso'] == str(queue_client.get_id())].iloc[-1]
-        if client_row['T. Comienzo'] is not None:
-            client_row['T. Final'] = time
-            client_row['T. Retorno'] = client_row['T. Final'] - client_row['T. Llegada']
-            client_row['T. Espera'] = client_row['T. Retorno'] - (client_row['T. Final'] - client_row['T. Comienzo'])
-            client_row['Estado'] = 'Terminado'
+            client_row = expel_table_line(queue_client)
             table_data.loc[client_row.name] = client_row
             new_table_line(queue_client, client_row['T. Llegada'])
-            client_row = table_data.iloc[-1]
 
-        client_row['Estado'] = new_state
-        table_data.loc[client_row.name] = client_row
+        table_data.iloc[-1, table_data.columns.get_loc('Estado')] = new_state
 
     block_button.action = block_button_action
 
@@ -226,40 +249,20 @@ if __name__ == '__main__':
                         current_tag=str(queue_client.get_id()),
                         blocked_tag=str(blocked_client.get_id()) if blocked_client else None
                     )
-
-                    # Localizar el cliente en la tabla.
-                    client_rows = table_data[table_data['Proceso'] == str(queue_client.get_id())].iloc
                     queue.dequeue()
 
                     # Cuando se terminó de atender a un cliente.
                     if queue.get_current_service() == 0 and queue.get_size() == 1 or queue.get(1) is not queue_client:
-                        client_rows[-1, table_data.columns.get_loc('T. Final')] = time
-
-                        client_rows[-1, table_data.columns.get_loc('T. Retorno')] =\
-                            client_rows[-1]['T. Final'] - client_rows[-1]['T. Llegada']
-
-                        # Para calcular el tiempo de espera se inicia con el tiempo de retorno actual.
-                        client_rows[-1, table_data.columns.get_loc('T. Espera')] = client_rows[-1]['T. Retorno']
-                        # Se le resta la ráfaga ejecutada de cada fila del proceso.
-                        for client_row in client_rows:
-                            # Sólo se restan los que tienen el mismo tiempo de llegada.
-                            if client_row['T. Llegada'] != client_rows[-1]['T. Llegada']:
-                                continue
-                            
-                            client_rows[-1, table_data.columns.get_loc('T. Espera')] -=\
-                                client_row['T. Final'] - client_row['T. Comienzo']
-
-                        client_rows[-1, table_data.columns.get_loc('Estado')] = 'Expulsado'
-
+                        client_row = expel_table_line(queue_client)
                         if queue_client.is_done():
                             grant.remove_tag(str(queue_client.get_id()))
-                            client_rows[-1, table_data.columns.get_loc('Estado')] = 'Terminado'
+                            client_row['Estado'] = 'Terminado'
                         else:
-                            new_table_line(queue_client, client_rows[-1]['T. Llegada'])
+                            new_table_line(queue_client, client_row['T. Llegada'])
                                     
 
                     # Actulizar la nueva fila en la tabla.
-                    table_data.loc[client_rows[-1].name] = client_rows[-1]
+                    table_data.loc[client_row.name] = client_row
 
                 # Cuando no hay clientes en fila.
                 else:
