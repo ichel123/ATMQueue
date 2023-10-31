@@ -238,15 +238,22 @@ if __name__ == '__main__':
                         client_rows[-1, table_data.columns.get_loc('T. Retorno')] =\
                             client_rows[-1]['T. Final'] - client_rows[-1]['T. Llegada']
 
+                        # Para calcular el tiempo de espera se inicia con el tiempo de retorno actual.
                         client_rows[-1, table_data.columns.get_loc('T. Espera')] = client_rows[-1]['T. Retorno']
+                        # Se le resta la ráfaga ejecutada de cada fila del proceso.
                         for client_row in client_rows:
+                            # Sólo se restan los que tienen el mismo tiempo de llegada.
+                            if client_row['T. Llegada'] != client_rows[-1]['T. Llegada']:
+                                continue
+                            
                             client_rows[-1, table_data.columns.get_loc('T. Espera')] -=\
                                 client_row['T. Final'] - client_row['T. Comienzo']
 
-                        client_rows[-1, table_data.columns.get_loc('Estado')] = 'Terminado'
+                        client_rows[-1, table_data.columns.get_loc('Estado')] = 'Expulsado'
 
                         if queue_client.is_done():
                             grant.remove_tag(str(queue_client.get_id()))
+                            client_rows[-1, table_data.columns.get_loc('Estado')] = 'Terminado'
                         else:
                             new_table_line(queue_client, client_rows[-1]['T. Llegada'])
                                     
