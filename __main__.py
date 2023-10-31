@@ -228,23 +228,31 @@ if __name__ == '__main__':
                     )
 
                     # Localizar el cliente en la tabla.
-                    client_row = table_data[table_data['Proceso'] == str(queue_client.get_id())].iloc[-1]
+                    client_rows = table_data[table_data['Proceso'] == str(queue_client.get_id())].iloc
                     queue.dequeue()
 
                     # Cuando se terminó de atender a un cliente.
                     if queue.get_current_service() == 0 and queue.get_size() == 1 or queue.get(1) is not queue_client:
-                        client_row['T. Final'] = time + 1
-                        client_row['T. Retorno'] = client_row['T. Final'] - client_row['T. Llegada']
-                        client_row['T. Espera'] = client_row['T. Retorno'] - (client_row['T. Final'] - client_row['T. Comienzo'])
-                        client_row['Estado'] = 'Terminado'
+                        client_rows[-1, table_data.columns.get_loc('T. Final')] = time
+
+                        client_rows[-1, table_data.columns.get_loc('T. Retorno')] =\
+                            client_rows[-1]['T. Final'] - client_rows[-1]['T. Llegada']
+
+                        client_rows[-1, table_data.columns.get_loc('T. Espera')] = client_rows[-1]['T. Retorno']
+                        for client_row in client_rows:
+                            client_rows[-1, table_data.columns.get_loc('T. Espera')] -=\
+                                client_row['T. Final'] - client_row['T. Comienzo']
+
+                        client_rows[-1, table_data.columns.get_loc('Estado')] = 'Terminado'
+
                         if queue_client.is_done():
                             grant.remove_tag(str(queue_client.get_id()))
                         else:
-                            new_table_line(queue_client, client_row['T. Llegada'])
+                            new_table_line(queue_client, client_rows[-1]['T. Llegada'])
                                     
 
                     # Actulizar la nueva fila en la tabla.
-                    table_data.loc[client_row.name] = client_row
+                    table_data.loc[client_rows[-1].name] = client_rows[-1]
 
                 # Cuando no hay clientes en fila.
                 else:
