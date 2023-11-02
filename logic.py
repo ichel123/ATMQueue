@@ -277,6 +277,9 @@ class FIFO_Server_Queue(Queue[Queue_Client]):
         if type(client) is not Queue_Client:
             raise ValueError
 
+        if client.get_priority() is not None:
+            raise ValueError
+        
         super().enqueue(client)
 
     def dequeue(self) -> Queue_Client:
@@ -343,6 +346,44 @@ class Priority_Server_Queue(FIFO_Server_Queue):
 
         if self.get_current_service() > 0 and aux_node is self._Queue__front.next:
             aux_node = aux_node.next
+
+        new_node.next = aux_node
+        new_node.prev = aux_node.prev
+
+        aux_node.prev.next = new_node
+        aux_node.prev = new_node
+
+        if aux_node is self._Queue__front:
+            self._Queue__back = new_node
+
+        return
+        
+class SRTF_Server_Queue(FIFO_Server_Queue):
+    """Representa una cola donde al frente hay un cajero,
+    pero los clientes son atendidos según su ráfaga restante más baja."""
+
+    def enqueue(self, client: Queue_Client):
+        """Añade al cliente a la cola y lo coloca en la posición indicada según su ráfaga restante."""
+        
+        if type(client) is not Queue_Client:
+            raise ValueError
+        
+        if client.get_priority() is not None:
+            raise ValueError
+        
+        self._Queue__size += 1
+        
+        new_node = Queue._Queue__Node(client)
+        aux_node = self._Queue__front.next
+
+        while aux_node is not self._Queue__front:
+            if  client.get_number_of_requests() < aux_node.data.get_number_of_requests():
+                break
+            
+            aux_node = aux_node.next
+
+        if self.get_current_service() > 0 and aux_node is self._Queue__front.next:
+            self._FIFO_Server_Queue__current_service = 0
 
         new_node.next = aux_node
         new_node.prev = aux_node.prev

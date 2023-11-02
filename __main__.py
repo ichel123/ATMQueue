@@ -29,13 +29,13 @@ if __name__ == '__main__':
     if params.ENABLE_PRIORITY:
         queue = logic.Priority_Server_Queue(params.SERVER_CAPACITY)
     else:
-        queue = logic.FIFO_Server_Queue(params.SERVER_CAPACITY)
+        queue = logic.SRTF_Server_Queue(params.SERVER_CAPACITY)
 
     def create_new_client(id: str, n_requests: int, n_priority: int) -> None:
         """Crea un nuevo cliente para uso del programa."""
 
         if not params.ENABLE_PRIORITY:
-            n_priority = '-'
+            n_priority = None
 
         queue_client = logic.Queue_Client(id,n_requests, time, n_priority)
         queue.enqueue(queue_client)
@@ -197,7 +197,15 @@ if __name__ == '__main__':
             priority_textbox.text = '¡ERROR!'
             return
 
+        past_service = queue.get_current_service()
+        try: front_client = queue.get(1)
+        except IndexError: front_client = None
         create_new_client(id_textbox.text, int(requests), int(priority))
+        if queue.get_current_service() != past_service and front_client is not None:
+            client_row = expel_table_line(front_client)
+            table_data.loc[client_row.name] = client_row
+            new_table_line(queue_client, client_row['T. Llegada'])
+            table_data.iloc[-1, table_data.columns.get_loc('Estado')] = 'Esperando'
 
         id_textbox.text = ''
         requests_textbox.text = ''
