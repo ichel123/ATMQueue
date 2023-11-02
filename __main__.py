@@ -10,7 +10,7 @@ if __name__ == '__main__':
     screen = pygame.display.set_mode((params.SCREEN_WIDTH, params.SCREEN_HEIGHT))
     pygame.display.set_caption('Proceso de colas')
     clock = pygame.time.Clock()
-    time = 1
+    time = 0
 
     # Declaración de los eventos para atención y si la ejecución es automática.
     MANUAL_RESPOND = pygame.USEREVENT + 1
@@ -47,7 +47,7 @@ if __name__ == '__main__':
         table_data.loc[len(table_data)] = (
             str(queue_client.get_id()),                         # Id
             'Esperando',                                        # Estado
-            time if arrival_time is None else arrival_time, # Tiempo de llegada
+            time + 1 if arrival_time is None else arrival_time, # Tiempo de llegada
             queue_client.get_priority(),                        # Prioridad
             queue_client.get_number_of_requests(),              # Número de solicitudes.
             None,
@@ -63,7 +63,7 @@ if __name__ == '__main__':
         client_rows = table_data[table_data['Proceso'] == queue_client.get_id()].iloc
 
         # Agregar el tiempo final en la última.
-        client_rows[-1, table_data.columns.get_loc('T. Final')] = time
+        client_rows[-1, table_data.columns.get_loc('T. Final')] = time + 1
 
         # Agregar el tiempo de retorno en la última.
         client_rows[-1, table_data.columns.get_loc('T. Retorno')] =\
@@ -94,7 +94,7 @@ if __name__ == '__main__':
     blocked_client: logic.Queue_Client = None
 
     # Instanciación de etiquetas
-    time_tag = view.Tag(20, 370, f'Tiempo: {time}', 'Comic Sans MS', 15, 'Black')
+    time_tag = view.Tag(20, 370, f'Tiempo: {time + 1}', 'Comic Sans MS', 15, 'Black')
     critical_section_tag = view.Tag(20, 610, f'En sección crítica: -', 'Comic Sans MS', 15, 'Black')
     waiting_tag = view.Tag(200, 610, f'Procesos en espera: {queue.get_size() - 1}', 'Comic Sans MS', 15, 'Black')
     tag_list = [
@@ -210,24 +210,28 @@ if __name__ == '__main__':
         
         global blocked_client
         if blocked_client:
-            queue_client = blocked_client
-            blocked_client = None
-            queue.enqueue(queue_client)
             new_state = 'Esperando'
             block_button.tag = 'Bloquear Primero'
+            queue_client = blocked_client
+            blocked_client = None
+            index = table_data[table_data['Proceso'] == queue_client.get_id()].iloc[-1].name
+            queue.enqueue(queue_client)
 
         else:
-            queue_client = queue.get(1)
-            blocked_client = queue_client
-            queue.remove(queue_client)
             new_state = 'Bloqueado'
             block_button.tag = 'Desbloquear Bloqueado'
+            queue_client = queue.get(1)
+            blocked_client = queue_client
+            index = table_data[table_data['Proceso'] == queue_client.get_id()].iloc[-1].name
+            if queue.get_current_service() > 0:
+                client_row = expel_table_line(queue_client)
+                table_data.loc[client_row.name] = client_row
+                new_table_line(queue_client, client_row['T. Llegada'])
+                index = table_data.iloc[-1].name
 
-            client_row = expel_table_line(queue_client)
-            table_data.loc[client_row.name] = client_row
-            new_table_line(queue_client, client_row['T. Llegada'])
+            queue.remove(queue_client)
 
-        table_data.iloc[-1, table_data.columns.get_loc('Estado')] = new_state
+        table_data.loc[index, 'Estado'] = new_state
 
     block_button.action = block_button_action
 
@@ -251,6 +255,15 @@ if __name__ == '__main__':
                     )
                     queue.dequeue()
 
+                    # Dando tiempo de llegada a proceso actual.
+                    client_row = table_data[table_data['Proceso'] == str(queue_client.get_id())].iloc[-1]
+                    client_row['Estado'] = 'En Ejecución'
+                    if client_row['T. Comienzo'] is None:
+                        client_row['T. Comienzo'] = time
+
+                    # Actulizar la nueva fila en la tabla.
+                    table_data.loc[client_row.name] = client_row
+
                     # Cuando se terminó de atender a un cliente.
                     if queue.get_current_service() == 0 and queue.get_size() == 1 or queue.get(1) is not queue_client:
                         client_row = expel_table_line(queue_client)
@@ -260,9 +273,8 @@ if __name__ == '__main__':
                         else:
                             new_table_line(queue_client, client_row['T. Llegada'])
                                     
-
-                    # Actulizar la nueva fila en la tabla.
-                    table_data.loc[client_row.name] = client_row
+                        # Actulizar la nueva fila en la tabla.
+                        table_data.loc[client_row.name] = client_row
 
                 # Cuando no hay clientes en fila.
                 else:
@@ -300,22 +312,14 @@ if __name__ == '__main__':
 
         # Simulación Semáforo
         time_tag.tag = f'Tiempo: {time}'
-        if queue.get_size() > 1:
+        if queue.get_current_service() > 0 and queue.get_size() > 1:
             queue_client = queue.get(1)
             critical_section_tag.tag = f'En sección crítica: {queue_client.get_id()}'
             waiting_tag.tag = f'Procesos en espera: {queue.get_size() - 2}'
 
-            # Dando tiempo de llegada a proceso actual.
-            client_row = table_data[table_data['Proceso'] == str(queue_client.get_id())].iloc[-1]
-            client_row['Estado'] = 'En Ejecución'
-            if client_row['T. Comienzo'] is None:
-                client_row['T. Comienzo'] = time
-
-            table_data.loc[client_row.name] = client_row
-
         else:
             critical_section_tag.tag = f'En seccion crítica: -'
-            waiting_tag.tag = f'Procesos en espera: 0'
+            waiting_tag.tag = f'Procesos en espera: {queue.get_size() - 1}'
 
         # Dibujando elementos.
         for tag in tag_list:
