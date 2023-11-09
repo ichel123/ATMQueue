@@ -134,7 +134,7 @@ if __name__ == '__main__':
     addclient_button = view.Button(230, 450, 90, 110, 2, 'Añadir', 'Comic Sans MS', 15)
     button_list.append(addclient_button)
 
-    block_button = view.Button(120, 570, 200, 30, 2, 'Bloquear Primero', 'Comic Sans MS', 15)
+    block_button = view.Button(120, 570, 200, 30, 2, 'Bloquear', 'Comic Sans MS', 15)
     button_list.append(block_button)
 
 
@@ -219,7 +219,7 @@ if __name__ == '__main__':
         global blocked_client
         if blocked_client:
             new_state = 'Esperando'
-            block_button.tag = 'Bloquear Primero'
+            block_button.tag = 'Bloquear'
             queue_client = blocked_client
             blocked_client = None
             index = table_data[table_data['Proceso'] == queue_client.get_id()].iloc[-1].name
