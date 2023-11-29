@@ -410,7 +410,20 @@ class MultiColas_Server_Queue():
             if not isinstance(arg, FIFO_Server_Queue):
                 raise ValueError
             self.queues.append(arg)
-
+    
+    def __iter__(self):
+        return chain(*self.queues)
+    
+    def elementos(self):
+        pos = 1
+        for queue in self.queues:
+            print(f"Cola {pos} -> :", queue)
+            for client in queue:
+                if isinstance(client, Queue_Client):
+                    print(f"  Cliente {client.get_id()} - Solicitudes: {client.get_number_of_requests()} - Prioridad: {client.get_priority()}")
+            pos += pos 
+            
+         
     def enqueue(self, client: Queue_Client, /, queue_index = None):
         if not isinstance(client, Queue_Client):
             raise ValueError
@@ -439,6 +452,10 @@ class MultiColas_Server_Queue():
 
         raise ValueError
 
+    def get_size(self) -> int:
+        """Devuelve el total de clientes en todas las colas."""
+        return sum(queue.get_size() for queue in self.queues)
+
     def __repr__(self) -> str:
         salida = 'MultiColas:\n'
         for queue in self.queues:
@@ -447,3 +464,18 @@ class MultiColas_Server_Queue():
             salida = salida[:-1]
 
         return salida
+    
+    def get_clients_in_queue(self, queue_number: int) -> list:
+        """Obtiene todos los clientes de una cola específica."""
+        if 0 <= queue_number < len(self.queues):
+            return [
+                {
+                    "id": client.get_id(),
+                    "requests": client.get_number_of_requests(),
+                    "arrival_time": client.get_arrival_time(),
+                    "priority": client.get_priority()
+                }
+                for client in self.queues[queue_number]
+                if isinstance(client, Queue_Client)
+            ]
+    
