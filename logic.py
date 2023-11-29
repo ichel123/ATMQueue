@@ -1,6 +1,8 @@
 """Módulo con las estructuras de datos para la simulación de una cola de cajero."""
 
 from typing import TypeVar, Generic
+from random import randrange
+from itertools import chain
 
 T = TypeVar('T')
 
@@ -234,6 +236,11 @@ class Queue_Client:
 
         return self.__priority
     
+    def set_priority(self, priority: int):
+        """Asigna la prioridad indicada al cliente.
+        priority: Nuea prioridad del cliente"""
+        self.__priority = priority
+    
     def get_final_time(self):
         """Devuelve el tiempo en el que el cliente terminó o -1 si no ha terminado."""
 
@@ -395,4 +402,48 @@ class SRTF_Server_Queue(FIFO_Server_Queue):
             self._Queue__back = new_node
 
         return
+
+class MultiColas_Server_Queue():
+    def __init__(self, *args: FIFO_Server_Queue) -> None:
+        self.queues: list[FIFO_Server_Queue] = []
+        for arg in args:
+            if not isinstance(arg, FIFO_Server_Queue):
+                raise ValueError
+            self.queues.append(arg)
+
+    def enqueue(self, client: Queue_Client, /, queue_index = None):
+        if not isinstance(client, Queue_Client):
+            raise ValueError
         
+        if queue_index is None:
+            queue_index = randrange(len(self.queues))
+
+        try:
+            self.queues[queue_index].enqueue(client)
+        except ValueError:
+            client.set_priority(randrange(1,6))
+            self.queues[queue_index].enqueue(client)
+
+    def dequeue(self) -> Queue_Client:
+        for queue in self.queues:
+            if queue.get_size() <= 1:
+                continue
+            return queue.dequeue()
+
+    def remove(self, client: Queue_Client):
+        for queue in self.queues:
+            try:
+                return queue.remove(client)
+            except ValueError:
+                continue
+
+        raise ValueError
+
+    def __repr__(self) -> str:
+        salida = 'MultiColas:\n'
+        for queue in self.queues:
+            salida += f'    {type(queue).__name__}({str(list(queue))[1:-1]})\n'
+        else:
+            salida = salida[:-1]
+
+        return salida
