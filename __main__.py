@@ -1,7 +1,7 @@
 """Programa que simula una cola de cajero de manera gráfica usando Pygame."""
 
 import sys, pygame, random, pandas
-import logic, view, params
+import logic, view, params, enqueuer
 
 if __name__ == '__main__':
     pygame.init()
@@ -18,12 +18,15 @@ if __name__ == '__main__':
     pygame.time.set_timer(AUTOMATIC_RESPOND, params.AUTOMATIC_RESPOND_TIME, -1)
     automatic = False
 
+    queue_list = enqueuer.Server_Enqueuer()
+
     # Instanciación de la tabla y su representación gráfica.
     table_data = pandas.DataFrame(columns=('Proceso', 'Estado', 'T. Llegada', 'Prioridad', 'Ráfaga', 'T. Comienzo', 'T. Final', 'T. Retorno', 'T. Espera'))
     table = view.Table(table_data, 10, 10, 100, 20, 1, 7, 2, 'Comic Sans MS', 15)
-
+    queue_tables = []
+    
     # Instanciación del diagrama de Grant.
-    grant = view.Grant(400, 370, 480, 270, 'Comic Sans MS', 15)
+    grant = view.Grant(500, 350, 480, 300, 'Comic Sans MS', 15)
 
     # Instanciación de la cola.
     if params.ENABLE_PRIORITY:
@@ -31,13 +34,13 @@ if __name__ == '__main__':
     else:
         queue = logic.SRTF_Server_Queue(params.SERVER_CAPACITY)
 
-    def create_new_client(id: str, n_requests: int, n_priority: int) -> None:
+    
+    # Borré lo de las prioridades y las dejé en la clase de Priority_Server_Queue directamente
+    def create_new_client(id: str, n_requests: int, queue_number: int = None) -> None:
         """Crea un nuevo cliente para uso del programa."""
 
-        if not params.ENABLE_PRIORITY:
-            n_priority = None
-
-        queue_client = logic.Queue_Client(id,n_requests, time, n_priority)
+        queue_client = logic.Queue_Client(id,n_requests, time, queue_number)
+        queue_list.enqueue(queue_client)
         queue.enqueue(queue_client)
         grant.add_tag(str(queue_client.get_id()))
         new_table_line(queue_client)
@@ -55,7 +58,27 @@ if __name__ == '__main__':
             None,
             None
         )
+    
+    def new_queue_table(arrival_time: int = None):
+        """Trae la información de los clientes de cada cola y las dibuja."""
+        y_position = 300
+        for i in range(len(queue_list.queues)):
+            queue_data = {'Proceso': [], 'T. Llegada': [], 'Prioridad': [], 'Ráfaga': []}
+            clients_in_queue = queue_list.get_clients_in_queue(i)
+            print(f"clients_in_queue for queue {i}: {clients_in_queue}")
 
+            for client in clients_in_queue:
+                queue_data['Proceso'].append(str(client['id']))
+                queue_data['T. Llegada'].append(time + 1 if arrival_time is None else arrival_time)
+                queue_data['Prioridad'].append(client['priority'])
+                queue_data['Ráfaga'].append(client['requests'])
+            queue_table = view.Table(pandas.DataFrame(queue_data), 10, y_position, 100, 20, 1, 5, 2, 'Comic Sans MS', 15)
+            queue_tables.append(queue_table)
+            y_position += 130
+            print(f"queue_data {i}: {queue_data}") 
+
+        queue_table.draw(screen)
+    
     def expel_table_line(queue_client: logic.Queue_Client) -> pandas.Series:
         """Devuelve una fila con la infomarción calculada tras la expulsión de un proceso."""
 
@@ -86,55 +109,57 @@ if __name__ == '__main__':
         return client_rows[-1]
 
     # Clientes iniciales.
-    for i in range(5):
+    for i in range(10):
         id = chr(ord('A') + i)
-        create_new_client(id,random.randint(1,15),random.randint(1,5))
+        queue_number = random.randint(1, 3)
+        create_new_client(id,random.randint(1,15),queue_number)
 
+    new_queue_table(1)
     # Cliente bloqueado actualmente.
     blocked_client: logic.Queue_Client = None
 
     # Instanciación de etiquetas
-    time_tag = view.Tag(20, 370, f'Tiempo: {time + 1}', 'Comic Sans MS', 15, 'Black')
-    critical_section_tag = view.Tag(20, 610, f'En sección crítica: -', 'Comic Sans MS', 15, 'Black')
-    waiting_tag = view.Tag(200, 610, f'Procesos en espera: {queue.get_size() - 1}', 'Comic Sans MS', 15, 'Black')
+    time_tag = view.Tag(950, 10, f'Tiempo: {time + 1}', 'Comic Sans MS', 15, 'Black')
+    critical_section_tag = view.Tag(500, 300, f'En sección crítica: -', 'Comic Sans MS', 15, 'Black')
+    waiting_tag = view.Tag(680, 300, f'Procesos en espera: {queue_list.queued_clients() - 1}', 'Comic Sans MS', 15, 'Black')
     tag_list = [
-        view.Tag(80, 450, 'Id:', 'Comic Sans MS', 15, 'Black'),
-        view.Tag(20, 490, 'Solicitudes:', 'Comic Sans MS', 15, 'Black'),
+        view.Tag(950, 90, 'Id:', 'Comic Sans MS', 15, 'Black'),
+        view.Tag(950, 130, 'Solicitudes:', 'Comic Sans MS', 15, 'Black'),
         time_tag,
         critical_section_tag,
         waiting_tag
     ]
 
     if params.ENABLE_PRIORITY:
-        tag_list.append(view.Tag(30, 530, 'Prioridad:', 'Comic Sans MS', 15, 'Black'))
+        tag_list.append(view.Tag(950, 170, 'Prioridad:', 'Comic Sans MS', 15, 'Black'))
 
     # Instanciación de cajas de texto
     textbox_list = []
 
-    id_textbox = view.Textbox(120, 450, 100, 30, 2, 'Comic Sans MS', 15)
+    id_textbox = view.Textbox(1050, 90, 100, 30, 2, 'Comic Sans MS', 15)
     textbox_list.append(id_textbox)
 
-    requests_textbox = view.Textbox(120, 490, 100, 30, 2, 'Comic Sans MS', 15)
+    requests_textbox = view.Textbox(1050, 130, 100, 30, 2, 'Comic Sans MS', 15)
     textbox_list.append(requests_textbox)
     
-    priority_textbox = view.Textbox(120, 530, 100, 30, 2, 'Comic Sans MS', 15)
+    priority_textbox = view.Textbox(1050, 170, 100, 30, 2, 'Comic Sans MS', 15)
     if params.ENABLE_PRIORITY:
         textbox_list.append(priority_textbox)
 
     # Instanciación de botones
     button_list = []
 
-    automatic_button = view.Button(120, 370, 200, 30, 2, 'Encender Automático', 'Comic Sans MS', 15)
+    automatic_button = view.Button(1050, 10, 200, 30, 2, 'Encender Automático', 'Comic Sans MS', 15)
     automatic_button.box_color_idle = 'Red'
     button_list.append(automatic_button)
 
-    manual_button = view.Button(120, 410, 200, 30, 2, 'Siguiente Paso', 'Comic Sans MS', 15)
+    manual_button = view.Button(1050, 50, 200, 30, 2, 'Siguiente Paso', 'Comic Sans MS', 15)
     button_list.append(manual_button)
 
-    addclient_button = view.Button(230, 450, 90, 110, 2, 'Añadir', 'Comic Sans MS', 15)
+    addclient_button = view.Button(1160, 90, 90, 110, 2, 'Añadir', 'Comic Sans MS', 15)
     button_list.append(addclient_button)
 
-    block_button = view.Button(120, 570, 200, 30, 2, 'Bloquear', 'Comic Sans MS', 15)
+    block_button = view.Button(1050, 210, 200, 30, 2, 'Bloquear', 'Comic Sans MS', 15)
     button_list.append(block_button)
 
 
@@ -338,8 +363,12 @@ if __name__ == '__main__':
 
         for button in button_list:
             button.draw(screen)
-
+        
         table.draw(screen)
+        
+        for queue_table in queue_tables:
+            queue_table.draw(screen)
+            
         grant.draw(screen)
 
         # Actualizar pantalla y esperar.

@@ -1,6 +1,7 @@
 """Módulo con las estructuras de datos para la simulación de una cola de cajero."""
 
 from typing import TypeVar, Generic
+import random
 
 T = TypeVar('T')
 
@@ -180,7 +181,7 @@ class Queue(Generic[T]):
 class Queue_Client:
     """Representa un cliente que espera en una cola de cajero."""
     
-    def __init__(self, id_client: str, n_requests: int, arrival_time: int, priority: int = None):
+    def __init__(self, id_client: str, n_requests: int, arrival_time: int, priority: int = None, queue_id: int = None):
         """Crea el cliente con la información correspondiente.
         id_client: Id del cliente.
         n_requests: Número de solicitudes del cliente.
@@ -195,6 +196,7 @@ class Queue_Client:
         self.__arrival_time = arrival_time
         self.__current_time = arrival_time
         self.__priority = priority
+        self.__queue_id = queue_id if queue_id is not None else random.randint(1, 3)
 
     def get_id(self) -> str:
         """Devuelve el id del cliente."""
@@ -219,6 +221,13 @@ class Queue_Client:
         self.__n_requests -= quantity
         self.__current_time += 1
 
+    def set_priority(self, n_priority: int):
+        self.__priority = n_priority
+
+    def get_queue_id(self):
+        """Devuelve el número de la cola a la que pertenece."""
+        return self.__queue_id
+    
     def is_done(self):
         """Verdadero si el cliente no tiene solicitudes pendientes. Falso de lo contrario."""
 
@@ -248,7 +257,7 @@ class Queue_Client:
 class FIFO_Server_Queue(Queue[Queue_Client]):
     """Representa una cola donde al frente hay un cajero."""
 
-    def __init__(self, capacity: int, *args: Queue_Client):
+    def __init__(self, capacity: int, quantum: int = None, *args: Queue_Client):
         """capacity: Número de solicitudes que el cajero puede atender por turno.
                      Si es exactamente 0, se atenderá hasta terminar.
         args: Clientes en la cola."""
@@ -265,6 +274,7 @@ class FIFO_Server_Queue(Queue[Queue_Client]):
         self._Queue__size = 1
 
         self.__capacity = capacity
+        self.__quantum = quantum
         self.__current_service = 0
 
         for arg in args:
@@ -277,7 +287,7 @@ class FIFO_Server_Queue(Queue[Queue_Client]):
         if type(client) is not Queue_Client:
             raise ValueError
 
-        if client.get_priority() is not None:
+        if self.__quantum is not None and client.get_priority() is None:
             raise ValueError
         
         super().enqueue(client)
@@ -291,12 +301,11 @@ class FIFO_Server_Queue(Queue[Queue_Client]):
 
         self._Queue__front.next.data.respond_requests(1)
         self.__current_service += 1
-        if (   self.__current_service < self.__capacity\
-            or self.__capacity == 0)\
-           and not self._Queue__front.next.data.is_done():
+        if (self.__quantum is not None and self.__current_service < self.__quantum) or (self.__capacity == 0 and not self._Queue__front.next.data.is_done()):
             return None
         
         self.__current_service = 0
+        
         if self._Queue__front.next.data.is_done():
             return super().dequeue(1)
 
@@ -331,15 +340,15 @@ class Priority_Server_Queue(FIFO_Server_Queue):
             raise ValueError
         
         if client.get_priority() is None:
-            raise ValueError
-        
+            client.set_priority(random.randint(1,5))
+                
         self._Queue__size += 1
         
         new_node = Queue._Queue__Node(client)
         aux_node = self._Queue__front.next
 
         while aux_node is not self._Queue__front:
-            if  client.get_priority() < aux_node.data.get_priority():
+            if  client.get_priority() is not None and client.get_priority() < aux_node.data.get_priority():
                 break
             
             aux_node = aux_node.next
@@ -357,7 +366,7 @@ class Priority_Server_Queue(FIFO_Server_Queue):
             self._Queue__back = new_node
 
         return
-        
+   
 class SRTF_Server_Queue(FIFO_Server_Queue):
     """Representa una cola donde al frente hay un cajero,
     pero los clientes son atendidos según su ráfaga restante más baja."""
@@ -395,4 +404,52 @@ class SRTF_Server_Queue(FIFO_Server_Queue):
             self._Queue__back = new_node
 
         return
+
+class RR_Server_Queue(FIFO_Server_Queue):
+    """Representa una cola donde al frente hay un cajero,
+    y los clientes son atendidos según el algoritmo Round Robin."""
+
+    def __init__(self):
+        self.__quantum = 5
+
+    def enqueue(self, client: Queue_Client):
+        """Añade al cliente a la cola y lo coloca en la posición indicada según el algoritmo Round Robin."""
+
+        if type(client) is not Queue_Client:
+            raise ValueError
         
+        if client.get_priority() is not None:
+            raise ValueError
+
+        self._Queue__size += 1
+
+        new_node = Queue._Queue__Node(client)
+        self._Queue__back.next = new_node
+        new_node.prev = self._Queue__back
+        new_node.next = self._Queue__front
+        self._Queue__front.prev = new_node
+        self._Queue__back = new_node
+
+    def dequeue(self) -> Queue_Client:
+        """Atiende al cliente según el algoritmo Round Robin.
+        Si el cliente ha terminado todas sus solicitudes, lo saca de la cola y lo devuelve. Si no, devuelve None."""
+
+        if self._Queue__size <= 1:
+            raise IndexError
+
+        current_client = self._Queue__front.next.data
+        current_client.respond_requests(1)
+        self.__time_counter += 1
+
+        if self.__time_counter == self.__quantum or current_client.is_done():
+            self.__time_counter = 0
+            return super().dequeue(1)
+
+        self._Queue__front.next = self._Queue__front.next.next
+        self._Queue__front.next.prev = self._Queue__front
+        self._Queue__back.next = self._Queue__front
+        self._Queue__front.prev = self._Queue__back
+
+        self._Queue__back = self._Queue__front.next
+
+        return None
