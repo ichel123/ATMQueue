@@ -36,6 +36,7 @@ if __name__ == '__main__':
     starting_requests = {}
     queue_tables = []
     queue_table_names = []
+    random_id = 1
 
     def create_new_client(id: str, n_requests: int, n_priority: int) -> None:
         """Crea un nuevo cliente para uso del programa."""
@@ -133,7 +134,7 @@ if __name__ == '__main__':
     # Clientes iniciales.
     for i in range(7):
         id = chr(ord('A') + i)
-        create_new_client(id,random.randint(1,15),random.randint(1,5))
+        create_new_client(id,random.randint(1,15), None)
 
     # print(multi_queue.elementos())
     new_queue_table(1)
@@ -309,6 +310,12 @@ if __name__ == '__main__':
             # Atención a la cola.
             if event.type == MANUAL_RESPOND or event.type == AUTOMATIC_RESPOND and automatic:
                 time += 1
+
+                # Llegada aleatoria
+                if random.random() < params.RANDOM_ADD_PROB:
+                    create_new_client(f'random {random_id}', random.randint(1,15), None)
+                    random_id += 1
+
                 # Sólo si hay clientes en fila.
                 if multi_queue.get_size() >= 1:
                     queue_client = multi_queue.get(0)
