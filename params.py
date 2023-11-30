@@ -1,7 +1,7 @@
 """Parámetros para la simulación gráfica de una cola de cajero."""
 
-SCREEN_WIDTH = 1300
-SCREEN_HEIGHT = 700
+SCREEN_WIDTH = 1200
+SCREEN_HEIGHT = 650
 SERVER_CAPACITY = 5
 AUTOMATIC_RESPOND_TIME = 200
 MAX_PRIORITY = 5
