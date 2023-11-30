@@ -34,6 +34,7 @@ if __name__ == '__main__':
     )
 
     queue_tables = []
+    queue_table_names = []
 
     def create_new_client(id: str, n_requests: int, n_priority: int) -> None:
         """Crea un nuevo cliente para uso del programa."""
@@ -61,8 +62,13 @@ if __name__ == '__main__':
     
     def new_queue_table(arrival_time: int = None):
         """Trae la información de los clientes de cada cola y las dibuja."""
+        names = ['Round Robin', 'FCFS', 'Prioridad']
         y_position = 300
         for i in range(len(multi_queue.queues)):
+            # Crear un título para la tabla
+            title_tag = view.Tag(10, y_position - 20, 'Tabla: ' + names[i], 'Comic Sans MS', 15, 'Black')
+            
+            view.Tag(950, 170, 'Prioridad:', 'Comic Sans MS', 15, 'Black'),
             queue_data = {'Proceso': [], 'T. Llegada': [], 'Ráfaga': []}
             clients_in_queue = multi_queue.get_clients_in_queue(i)
 
@@ -72,11 +78,14 @@ if __name__ == '__main__':
                 queue_data['Ráfaga'].append(client['requests'])
             queue_table = view.Table(pandas.DataFrame(queue_data), 10, y_position, 100, 20, 1, 5, 2, 'Comic Sans MS', 15)
             queue_tables.append(queue_table)
+            
+            # Dibujar el título antes de la tabla
+            queue_table_names.append(title_tag)
+            queue_table.draw(screen)
+            
             y_position += 130
-            print(f"queue_data {i}: {queue_data}") 
+            print(f"queue_data {i}: {queue_data}")
 
-        queue_table.draw(screen)
-        
     def expel_table_line(queue_client: logic.Queue_Client) -> pandas.Series:
         """Devuelve una fila con la infomarción calculada tras la expulsión de un proceso."""
 
@@ -140,7 +149,7 @@ if __name__ == '__main__':
     
     priority_textbox = view.Textbox(1050, 170, 100, 30, 2, 'Comic Sans MS', 15)
     textbox_list.append(priority_textbox)
-
+    
     # Instanciación de botones
     button_list = []
 
@@ -371,6 +380,9 @@ if __name__ == '__main__':
         table.draw(screen)
         for queue_table in queue_tables:
             queue_table.draw(screen)
+            
+        for name in queue_table_names:
+            name.draw(screen)
         grant.draw(screen)
 
         # Actualizar pantalla y esperar.
