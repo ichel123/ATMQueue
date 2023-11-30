@@ -325,6 +325,7 @@ if __name__ == '__main__':
                     grant.add_line(
                         blocked_tag=str(blocked_client.get_id()) if blocked_client else None
                     )
+                multi_queue.age(params.MAX_AGE)
                 print(multi_queue)
 
             # Hacer click en una caja de texto.

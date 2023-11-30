@@ -313,7 +313,7 @@ class FIFO_Server_Queue(Queue[Queue_Client]):
         """Elimina el cliente indicado de la lista."""
 
         index = list(self).index(queue_client)
-        if index == 1:
+        if index == 0:
             self.__current_service = 0
 
         super().dequeue(index)
@@ -461,6 +461,8 @@ class Multi_Queue_Server_Queue:
         if not isinstance(client, Queue_Client):
             raise ValueError
         
+        client.age = 0
+        
         if queue_index is None:
             queue_index = randrange(len(self.queues))
 
@@ -544,4 +546,18 @@ class Multi_Queue_Server_Queue:
 
         return -1
 
-    
+    def age(self, max_age: int):
+        for i, queue in enumerate(self.queues):
+            if i == 0:
+                continue
+
+            move_client_list = []
+            for queue_client in queue:
+                queue_client.age += 1
+                if queue_client.age >= max_age:
+                    queue_client.age = 0
+                    move_client_list.append(queue_client)
+            
+            for queue_client in move_client_list:
+                queue.remove(queue_client)
+                self.queues[i - 1].enqueue(queue_client)
