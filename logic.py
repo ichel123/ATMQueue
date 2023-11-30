@@ -279,7 +279,7 @@ class FIFO_Server_Queue(Queue[Queue_Client]):
             raise ValueError
 
         if client.get_priority() is not None:
-            raise ValueError
+            client.set_priority(None)
         
         super().enqueue(client)
 
@@ -325,7 +325,7 @@ class Priority_Server_Queue(FIFO_Server_Queue):
     """Representa una cola donde al frente hay un cajero,
     pero los clientes son atendidos según su prioridad más baja."""
 
-    def enqueue(self, client: Queue_Client):
+    def enqueue(self, client: Queue_Client, /, expulsion: bool = False):
         """Añade al cliente a la cola y lo coloca en la posición indicada según su prioridad."""
         
         if type(client) is not Queue_Client:
@@ -351,11 +351,22 @@ class Priority_Server_Queue(FIFO_Server_Queue):
             
             aux_node = aux_node.next
 
+        # Si se debe ingresar al final
         if aux_node.next is None and client.get_priority() >= aux_node.data.get_priority():
             aux_node.next = new_node
             new_node.prev = aux_node
             self._Queue__back = new_node
             return
+        
+        # Si se debe ingresar al inicio
+        if not expulsion and aux_node is self._Queue__front:
+            if aux_node.next is None:
+                aux_node.next = new_node
+                new_node.prev = aux_node
+                self._Queue__back = new_node
+                return
+
+            aux_node = aux_node.next
 
         new_node.next = aux_node
         new_node.prev = aux_node.prev
@@ -400,6 +411,7 @@ class SRTF_Server_Queue(FIFO_Server_Queue):
             
             aux_node = aux_node.next
 
+        # Si se debe ingresar al final
         if aux_node.next is None and client.get_number_of_requests() >= aux_node.data.get_number_of_requests():
             aux_node.next = new_node
             new_node.prev = aux_node
@@ -422,7 +434,7 @@ class SRTF_Server_Queue(FIFO_Server_Queue):
         if aux_node is self._Queue__front:
             self._Queue__front = new_node
 
-class MultiColas_Server_Queue:
+class Multi_Queue_Server_Queue:
     def __init__(self, *args: FIFO_Server_Queue, max_priority) -> None:
         self.queues: list[FIFO_Server_Queue] = []
         for arg in args:
@@ -453,7 +465,18 @@ class MultiColas_Server_Queue:
             queue_index = randrange(len(self.queues))
 
         try:
-            self.queues[queue_index].enqueue(client)
+            if isinstance(self.queues[queue_index], Priority_Server_Queue):
+                expulsion = True
+                try:
+                    if self.get_queue_number(self.get(0)) == queue_index:
+                        expulsion = False
+                except IndexError:
+                    pass
+                self.queues[queue_index].enqueue(client, expulsion=expulsion)
+            
+            else:
+                self.queues[queue_index].enqueue(client)
+
         except ValueError:
             client.set_priority(randrange(1, self.max_priority + 1))
             self.queues[queue_index].enqueue(client)

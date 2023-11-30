@@ -26,7 +26,7 @@ if __name__ == '__main__':
     grant = view.Grant(450, 370, 480, 270, 'Comic Sans MS', 15)
 
     # Instanciación de la cola.
-    multi_queue = logic.MultiColas_Server_Queue(
+    multi_queue = logic.Multi_Queue_Server_Queue(
         logic.FIFO_Server_Queue(params.SERVER_CAPACITY),
         logic.FIFO_Server_Queue(),
         logic.Priority_Server_Queue(),
@@ -37,8 +37,6 @@ if __name__ == '__main__':
 
     def create_new_client(id: str, n_requests: int, n_priority: int) -> None:
         """Crea un nuevo cliente para uso del programa."""
-
-        n_priority = None
 
         queue_client = logic.Queue_Client(id,n_requests, time, n_priority)
         multi_queue.enqueue(queue_client)
@@ -220,8 +218,8 @@ if __name__ == '__main__':
 
         past_service = multi_queue.get_current_service()
         try:
-            front_client = multi_queue.dequeue()
-        except ValueError:
+            front_client = multi_queue.get(0)
+        except IndexError:
             front_client = None
 
         create_new_client(id_textbox.text, int(requests), priority)
@@ -232,11 +230,11 @@ if __name__ == '__main__':
             new_table_line(front_client, client_row['T. Llegada'])
             table_data.iloc[-1, table_data.columns.get_loc('Estado')] = 'Esperando'
 
-
-
         id_textbox.text = ''
         requests_textbox.text = ''
         priority_textbox.text = ''
+
+        print(multi_queue)
 
     addclient_button.action = addclient_button_action
 
@@ -268,6 +266,7 @@ if __name__ == '__main__':
             multi_queue.remove(queue_client)
 
         table_data.loc[index, 'Estado'] = new_state
+        print(multi_queue)
 
     block_button.action = block_button_action
 
