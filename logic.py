@@ -177,7 +177,7 @@ class Queue(Generic[T]):
         return out
 
     def __repr__(self) -> str:
-        return f'{type(self).__name__}[{T}]({str(list(self))[1:-1]})'
+        return f'{type(self).__name__}[{T}]({str(list(self))})'
 
 class Queue_Client:
     """Representa un cliente que espera en una cola de cajero."""
@@ -255,7 +255,7 @@ class Queue_Client:
 class FIFO_Server_Queue(Queue[Queue_Client]):
     """Representa una cola donde al frente hay un cajero."""
 
-    def __init__(self, capacity: int, *args: Queue_Client):
+    def __init__(self, capacity: int = 0, *args: Queue_Client):
         """capacity: Número de solicitudes que el cajero puede atender por turno.
                      Si es exactamente 0, se atenderá hasta terminar.
         args: Clientes en la cola."""
@@ -264,12 +264,6 @@ class FIFO_Server_Queue(Queue[Queue_Client]):
             raise ValueError
 
         super().__init__()
-        self._Queue__front = Queue._Queue__Node("Servidor")
-        self._Queue__front.prev = self._Queue__front
-        self._Queue__front.next = self._Queue__front
-        self._Queue__back = self._Queue__front
-
-        self._Queue__size = 1
 
         self.__capacity = capacity
         self.__current_service = 0
@@ -293,21 +287,21 @@ class FIFO_Server_Queue(Queue[Queue_Client]):
         """Atiende al cliente en la segunda posición de la cola.
         Si el cliente ha terminado todas sus solicitudes, lo saca de la cola y lo devuelve. Si no, devuelve None."""
 
-        if self._Queue__size <= 1:
+        if self._Queue__size == 0:
             raise IndexError
 
-        self._Queue__front.next.data.respond_requests(1)
+        self._Queue__front.data.respond_requests(1)
         self.__current_service += 1
         if (   self.__current_service < self.__capacity\
             or self.__capacity == 0)\
-           and not self._Queue__front.next.data.is_done():
+           and not self._Queue__front.data.is_done():
             return None
         
         self.__current_service = 0
-        if self._Queue__front.next.data.is_done():
-            return super().dequeue(1)
+        if self._Queue__front.data.is_done():
+            return super().dequeue()
 
-        self.enqueue(super().dequeue(1))
+        self.enqueue(super().dequeue())
         return None
 
     def get_current_service(self) -> int:
@@ -343,27 +337,38 @@ class Priority_Server_Queue(FIFO_Server_Queue):
         self._Queue__size += 1
         
         new_node = Queue._Queue__Node(client)
-        aux_node = self._Queue__front.next
+        aux_node = self._Queue__front
 
-        while aux_node is not self._Queue__front:
-            if  client.get_priority() < aux_node.data.get_priority():
+        # Si la pila está vacía
+        if aux_node is None:
+            self._Queue__front = new_node
+            self._Queue__back = new_node
+            return
+
+        while aux_node.next is not None:
+            if client.get_priority() < aux_node.data.get_priority():
                 break
             
             aux_node = aux_node.next
 
-        if self.get_current_service() > 0 and aux_node is self._Queue__front.next:
-            aux_node = aux_node.next
+        if aux_node.next is None and client.get_priority() >= aux_node.data.get_priority():
+            aux_node.next = new_node
+            new_node.prev = aux_node
+            self._Queue__back = new_node
+            return
 
         new_node.next = aux_node
         new_node.prev = aux_node.prev
 
-        aux_node.prev.next = new_node
+        try:
+            aux_node.prev.next = new_node
+        except AttributeError:
+            pass
+
         aux_node.prev = new_node
 
         if aux_node is self._Queue__front:
-            self._Queue__back = new_node
-
-        return
+            self._Queue__front = new_node
         
 class SRTF_Server_Queue(FIFO_Server_Queue):
     """Representa una cola donde al frente hay un cajero,
@@ -381,35 +386,51 @@ class SRTF_Server_Queue(FIFO_Server_Queue):
         self._Queue__size += 1
         
         new_node = Queue._Queue__Node(client)
-        aux_node = self._Queue__front.next
+        aux_node = self._Queue__front
 
-        while aux_node is not self._Queue__front:
+        # Si la pila está vacía
+        if aux_node is None:
+            self._Queue__front = new_node
+            self._Queue__back = new_node
+            return
+
+        while aux_node.next is not None:
             if  client.get_number_of_requests() < aux_node.data.get_number_of_requests():
                 break
             
             aux_node = aux_node.next
 
-        if self.get_current_service() > 0 and aux_node is self._Queue__front.next:
+        if aux_node.next is None and client.get_number_of_requests() >= aux_node.data.get_number_of_requests():
+            aux_node.next = new_node
+            new_node.prev = aux_node
+            self._Queue__back = new_node
+            return
+
+        if self.get_current_service() > 0 and aux_node is self._Queue__front:
             self._FIFO_Server_Queue__current_service = 0
 
         new_node.next = aux_node
         new_node.prev = aux_node.prev
 
-        aux_node.prev.next = new_node
+        try:
+            aux_node.prev.next = new_node
+        except AttributeError:
+            pass
+
         aux_node.prev = new_node
 
         if aux_node is self._Queue__front:
-            self._Queue__back = new_node
+            self._Queue__front = new_node
 
-        return
-
-class MultiColas_Server_Queue():
-    def __init__(self, *args: FIFO_Server_Queue) -> None:
+class MultiColas_Server_Queue:
+    def __init__(self, *args: FIFO_Server_Queue, max_priority) -> None:
         self.queues: list[FIFO_Server_Queue] = []
         for arg in args:
             if not isinstance(arg, FIFO_Server_Queue):
                 raise ValueError
             self.queues.append(arg)
+
+        self.max_priority = max_priority
     
     def __iter__(self):
         return chain(*self.queues)
@@ -434,12 +455,12 @@ class MultiColas_Server_Queue():
         try:
             self.queues[queue_index].enqueue(client)
         except ValueError:
-            client.set_priority(randrange(1,6))
+            client.set_priority(randrange(1, self.max_priority + 1))
             self.queues[queue_index].enqueue(client)
 
     def dequeue(self) -> Queue_Client:
         for queue in self.queues:
-            if queue.get_size() <= 1:
+            if queue.get_size() == 0:
                 continue
             return queue.dequeue()
 
@@ -459,7 +480,7 @@ class MultiColas_Server_Queue():
     def __repr__(self) -> str:
         salida = 'MultiColas:\n'
         for queue in self.queues:
-            salida += f'    {type(queue).__name__}({str(list(queue))[1:-1]})\n'
+            salida += f'    {type(queue).__name__}({str(list(queue))})\n'
         else:
             salida = salida[:-1]
 
@@ -479,3 +500,23 @@ class MultiColas_Server_Queue():
                 if isinstance(client, Queue_Client)
             ]
     
+    def get_current_service(self) -> int:
+        for queue in self.queues:
+            if queue.get_current_service() > 0:
+                return queue.get_current_service()
+            
+        return 0
+
+    def get(self, pos: int) -> Queue_Client:
+        for i, client in enumerate(iter(self)):
+            if i == pos:
+                return client
+
+        raise IndexError
+
+    def get_queue_number(self, queue_client: Queue_Client) -> int:
+        for i, queue in enumerate(self.queues):
+            if queue_client in queue:
+                return i
+
+        return -1

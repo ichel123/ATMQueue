@@ -26,18 +26,19 @@ if __name__ == '__main__':
     grant = view.Grant(450, 370, 480, 270, 'Comic Sans MS', 15)
 
     # Instanciación de la cola.
-    RR_queue = logic.FIFO_Server_Queue(params.SERVER_CAPACITY)
-    FCFS_queue = logic.FIFO_Server_Queue(params.SERVER_CAPACITY)
-    Priority_queue = logic.FIFO_Server_Queue(params.SERVER_CAPACITY)
-    multi_queue = logic.MultiColas_Server_Queue(RR_queue, FCFS_queue, Priority_queue)
+    multi_queue = logic.MultiColas_Server_Queue(
+        logic.FIFO_Server_Queue(params.SERVER_CAPACITY),
+        logic.FIFO_Server_Queue(),
+        logic.Priority_Server_Queue(),
+        max_priority=params.MAX_PRIORITY
+    )
 
     queue_tables = []
 
     def create_new_client(id: str, n_requests: int, n_priority: int) -> None:
         """Crea un nuevo cliente para uso del programa."""
 
-        if not params.ENABLE_PRIORITY:
-            n_priority = None
+        n_priority = None
 
         queue_client = logic.Queue_Client(id,n_requests, time, n_priority)
         multi_queue.enqueue(queue_client)
@@ -62,13 +63,12 @@ if __name__ == '__main__':
         """Trae la información de los clientes de cada cola y las dibuja."""
         y_position = 300
         for i in range(len(multi_queue.queues)):
-            queue_data = {'Proceso': [], 'T. Llegada': [], 'Prioridad': [], 'Ráfaga': []}
+            queue_data = {'Proceso': [], 'T. Llegada': [], 'Ráfaga': []}
             clients_in_queue = multi_queue.get_clients_in_queue(i)
 
             for client in clients_in_queue:
                 queue_data['Proceso'].append(str(client['id']))
                 queue_data['T. Llegada'].append(time + 1 if arrival_time is None else arrival_time)
-                queue_data['Prioridad'].append(client['priority'])
                 queue_data['Ráfaga'].append(client['requests'])
             queue_table = view.Table(pandas.DataFrame(queue_data), 10, y_position, 100, 20, 1, 5, 2, 'Comic Sans MS', 15)
             queue_tables.append(queue_table)
@@ -119,17 +119,15 @@ if __name__ == '__main__':
     # Instanciación de etiquetas
     time_tag = view.Tag(950, 10, f'Tiempo: {time + 1}', 'Comic Sans MS', 15, 'Black')
     critical_section_tag = view.Tag(500, 300, f'En sección crítica: -', 'Comic Sans MS', 15, 'Black')
-    waiting_tag = view.Tag(680, 300, f'Procesos en espera: {multi_queue.get_size() - 1}', 'Comic Sans MS', 15, 'Black')
+    waiting_tag = view.Tag(680, 300, f'Procesos en espera: {multi_queue.get_size()}', 'Comic Sans MS', 15, 'Black')
     tag_list = [
         view.Tag(950, 90, 'Id:', 'Comic Sans MS', 15, 'Black'),
         view.Tag(950, 130, 'Solicitudes:', 'Comic Sans MS', 15, 'Black'),
+        view.Tag(950, 170, 'Prioridad:', 'Comic Sans MS', 15, 'Black'),
         time_tag,
         critical_section_tag,
         waiting_tag
     ]
-
-    if params.ENABLE_PRIORITY:
-        tag_list.append(view.Tag(950, 170, 'Prioridad:', 'Comic Sans MS', 15, 'Black'))
 
     # Instanciación de cajas de texto
     textbox_list = []
@@ -141,8 +139,7 @@ if __name__ == '__main__':
     textbox_list.append(requests_textbox)
     
     priority_textbox = view.Textbox(1050, 170, 100, 30, 2, 'Comic Sans MS', 15)
-    if params.ENABLE_PRIORITY:
-        textbox_list.append(priority_textbox)
+    textbox_list.append(priority_textbox)
 
     # Instanciación de botones
     button_list = []
@@ -189,9 +186,10 @@ if __name__ == '__main__':
 
         global id_textbox, requests_textbox
 
-        if    id_textbox.text in [str(queue_client.get_id()) for queue_client in list(multi_queue)[1:]]\
+        if    id_textbox.text in [str(queue_client.get_id()) for queue_client in list(multi_queue)]\
            or (blocked_client and id_textbox.text == blocked_client.get_id())\
-           or id_textbox.text == '':
+           or id_textbox.text == ''\
+           or id_textbox.text == '¡ERROR!':
             id_textbox.text = '¡ERROR!'
             return
 
@@ -210,27 +208,25 @@ if __name__ == '__main__':
         try:
             priority = priority_textbox.text
             if priority == '':
-                priority = random.randint(1, 5)
+                priority = None
             else:
                 priority = int(priority)
-                if priority <= 0 or priority > 5:
+                if priority <= 0 or priority > params.MAX_PRIORITY:
                     priority_textbox.text = '¡ERROR!'
                     return
         except ValueError:
             priority_textbox.text = '¡ERROR!'
             return
 
-        current_queue = multi_queue.queues[0]
-
-        past_service = current_queue.get_current_service()
+        past_service = multi_queue.get_current_service()
         try:
-            front_client = current_queue.dequeue()
+            front_client = multi_queue.dequeue()
         except ValueError:
             front_client = None
 
-        create_new_client(id_textbox.text, int(requests), int(priority))
+        create_new_client(id_textbox.text, int(requests), priority)
 
-        if current_queue.get_current_service() != past_service and front_client is not None:
+        if multi_queue.get_current_service() != past_service and front_client is not None:
             client_row = expel_table_line(front_client)
             table_data.loc[client_row.name] = client_row
             new_table_line(front_client, client_row['T. Llegada'])
@@ -247,22 +243,23 @@ if __name__ == '__main__':
     def block_button_action() -> None:
         """Bloquea o desbloquea un cliente dado."""
         
-        global blocked_client
+        global blocked_client, blocked_client_queue_index
         if blocked_client:
             new_state = 'Esperando'
             block_button.tag = 'Bloquear'
             queue_client = blocked_client
             blocked_client = None
             index = table_data[table_data['Proceso'] == queue_client.get_id()].iloc[-1].name
-            multi_queue.enqueue(queue_client)
+            multi_queue.enqueue(queue_client, queue_index=blocked_client_queue_index)
 
         else:
             new_state = 'Bloqueado'
             block_button.tag = 'Desbloquear Bloqueado'
-            queue_client = multi_queue.queues[0].get(1)
+            queue_client = multi_queue.get(0)
             blocked_client = queue_client
+            blocked_client_queue_index = multi_queue.get_queue_number(queue_client)
             index = table_data[table_data['Proceso'] == queue_client.get_id()].iloc[-1].name
-            if multi_queue.queues[0].get_current_service() > 0:
+            if multi_queue.get_current_service() > 0:
                 client_row = expel_table_line(queue_client)
                 table_data.loc[client_row.name] = client_row
                 new_table_line(queue_client, client_row['T. Llegada'])
@@ -275,7 +272,6 @@ if __name__ == '__main__':
     block_button.action = block_button_action
 
     # Ejecución del programa
-    pos = 1
     while True:
         for event in pygame.event.get():
             # Oprimir el botón de cerrar ventana.
@@ -287,50 +283,41 @@ if __name__ == '__main__':
             if event.type == MANUAL_RESPOND or event.type == AUTOMATIC_RESPOND and automatic:
                 time += 1
                 # Sólo si hay clientes en fila.
-                if multi_queue.get_size() >= 4:
-                    print('list(multi_queue.__iter__())[1] -> ', list(multi_queue.__iter__())[pos])
-                    queue_client = list(multi_queue.__iter__())[pos]
-                    if isinstance(queue_client, logic.Queue_Client):
-                        grant.add_line(
-                            current_tag=str(queue_client.get_id()),
-                            blocked_tag=str(blocked_client.get_id()) if blocked_client else None
-                        )
-                        print('multi_queue -> ', multi_queue)
-                        multi_queue.dequeue()
+                if multi_queue.get_size() >= 1:
+                    queue_client = multi_queue.get(0)
+                    grant.add_line(
+                        current_tag=str(queue_client.get_id()),
+                        blocked_tag=str(blocked_client.get_id()) if blocked_client else None
+                    )
+                    multi_queue.dequeue()
 
-                        # Dando tiempo de llegada a proceso actual.
-                        client_row = table_data[table_data['Proceso'] == str(queue_client.get_id())].iloc[-1]
-                        client_row['Estado'] = 'En Ejecución'
-                        if client_row['T. Comienzo'] is None:
-                            client_row['T. Comienzo'] = time
+                    # Dando tiempo de llegada a proceso actual.
+                    client_row = table_data[table_data['Proceso'] == str(queue_client.get_id())].iloc[-1]
+                    client_row['Estado'] = 'En Ejecución'
+                    if client_row['T. Comienzo'] is None:
+                        client_row['T. Comienzo'] = time
 
+                    # Actulizar la nueva fila en la tabla.
+                    table_data.loc[client_row.name] = client_row
+
+                    # Cuando se terminó de atender a un cliente.
+                    if multi_queue.get_current_service() == 0 and multi_queue.get_size() == 0 or multi_queue.get(0) is not queue_client:
+                        client_row = expel_table_line(queue_client)
+                        if queue_client.is_done():
+                            grant.remove_tag(str(queue_client.get_id()))
+                            client_row['Estado'] = 'Terminado'
+                        else:
+                            new_table_line(queue_client, client_row['T. Llegada'])
+                                    
                         # Actulizar la nueva fila en la tabla.
                         table_data.loc[client_row.name] = client_row
-
-                        # Cuando se terminó de atender a un cliente.
-                        if multi_queue.queues[0].get_current_service() == 0 and multi_queue.get_size() == 1:
-                            next_client = multi_queue.queues[0].get(1)
-                            if isinstance(next_client, logic.Queue_Client):
-                                client_row = expel_table_line(queue_client)
-                                if queue_client.is_done():
-                                    grant.remove_tag(str(queue_client.get_id()))
-                                    client_row['Estado'] = 'Terminado'
-                                else:
-                                    new_table_line(queue_client, client_row['T. Llegada'])
-                                            
-                                # Actulizar la nueva fila en la tabla.
-                                table_data.loc[client_row.name] = client_row
-                            else:
-                                pass
-                                
-                    else:
-                        pos += 1
-
+                            
                 # Cuando no hay clientes en fila.
                 else:
                     grant.add_line(
                         blocked_tag=str(blocked_client.get_id()) if blocked_client else None
                     )
+                print(multi_queue)
 
             # Hacer click en una caja de texto.
             if event.type == pygame.MOUSEBUTTONDOWN:
@@ -352,7 +339,7 @@ if __name__ == '__main__':
         else:
             manual_button.active = True
 
-        if blocked_client or multi_queue.queues[0].get_size() > 1:
+        if blocked_client or multi_queue.get_size() > 0:
             block_button.active = True
         else:
             block_button.active = False
@@ -362,14 +349,14 @@ if __name__ == '__main__':
 
         # Simulación Semáforo
         time_tag.tag = f'Tiempo: {time}'
-        if multi_queue.queues[0].get_current_service() > 0 and multi_queue.get_size() > 1:
-            queue_client = multi_queue.queues[0].get(1)
+        if multi_queue.get_current_service() > 0 and multi_queue.get_size() > 0:
+            queue_client = multi_queue.get(0)
             critical_section_tag.tag = f'En sección crítica: {queue_client.get_id()}'
-            waiting_tag.tag = f'Procesos en espera: {multi_queue.get_size() - 2}'
+            waiting_tag.tag = f'Procesos en espera: {multi_queue.get_size() - 1}'
 
         else:
             critical_section_tag.tag = f'En seccion crítica: -'
-            waiting_tag.tag = f'Procesos en espera: {multi_queue.get_size() - 1}'
+            waiting_tag.tag = f'Procesos en espera: {multi_queue.get_size()}'
 
         # Dibujando elementos.
         for tag in tag_list:
