@@ -264,7 +264,7 @@ if __name__ == '__main__':
             block_button.tag = 'Desbloquear Bloqueado'
             queue_client = multi_queue.get(0)
             blocked_client = queue_client
-            blocked_client_queue_index = multi_queue.get_queue_number(queue_client)
+            blocked_client_queue_index = multi_queue.get_queue_index(queue_client)
             index = table_data[table_data['Proceso'] == queue_client.get_id()].iloc[-1].name
             if multi_queue.get_current_service() > 0:
                 client_row = expel_table_line(queue_client)

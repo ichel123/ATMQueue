@@ -468,7 +468,7 @@ class Multi_Queue_Server_Queue:
             if isinstance(self.queues[queue_index], Priority_Server_Queue):
                 expulsion = True
                 try:
-                    if self.get_queue_number(self.get(0)) == queue_index:
+                    if self.get_queue_index(self.get(0)) == queue_index:
                         expulsion = False
                 except IndexError:
                     pass
@@ -509,9 +509,9 @@ class Multi_Queue_Server_Queue:
 
         return salida
     
-    def get_clients_in_queue(self, queue_number: int) -> list:
+    def get_clients_in_queue(self, queue_index: int) -> list:
         """Obtiene todos los clientes de una cola específica."""
-        if 0 <= queue_number < len(self.queues):
+        if 0 <= queue_index < len(self.queues):
             return [
                 {
                     "id": client.get_id(),
@@ -519,7 +519,7 @@ class Multi_Queue_Server_Queue:
                     "arrival_time": client.get_arrival_time(),
                     "priority": client.get_priority()
                 }
-                for client in self.queues[queue_number]
+                for client in self.queues[queue_index]
                 if isinstance(client, Queue_Client)
             ]
     
@@ -537,9 +537,11 @@ class Multi_Queue_Server_Queue:
 
         raise IndexError
 
-    def get_queue_number(self, queue_client: Queue_Client) -> int:
+    def get_queue_index(self, queue_client: Queue_Client) -> int:
         for i, queue in enumerate(self.queues):
             if queue_client in queue:
                 return i
 
         return -1
+
+    
